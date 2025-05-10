@@ -17,7 +17,7 @@ use work.array_type_pkg.all;
 entity  dataAddrUnit  is
     port (
     -- inputs for base addr
-        SrcSel      : in    integer  range 2 downto 0;       -- singal for selection 
+        SrcSel      : in    integer  range 3 downto 0;       -- singal for selection 
         PC          : in     std_logic_vector(31 downto 0);  -- selected when 0
         Rn          : in     std_logic_vector(31 downto 0);   -- selected when 1
         GBR         : in     std_logic_vector(31 downto 0);   -- selected when 2
@@ -83,6 +83,7 @@ begin
         AddrSrc(0) <= PC;                       -- 0
         AddrSrc(1) <= Rn;                       -- 1
         AddrSrc(2) <= GBR;                      -- 2
+        AddrSrc(3) <= (others => '0');                      -- 3
 
     -- inputs for offset selection, selected when OffsetSel:
         AddrOff(0) <= R0;                               -- 0
@@ -94,7 +95,7 @@ begin
 
     mau_general: MemUnit
         generic map (
-            srcCnt   => 3,
+            srcCnt   => 4,
             offsetCnt => 5,
             wordsize => 32               -- 32-bit address bus
         )
