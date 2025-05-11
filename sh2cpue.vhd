@@ -65,6 +65,10 @@ entity  SH2_CPU  is
         WE2     :  out    std_logic;                       -- third byte active low write enable
         WE3     :  out    std_logic;                       -- fourth byte active low write enable
         DB      :  inout  std_logic_vector(31 downto 0)    -- memory data bus
+
+        -- debug signals
+        PC_reset_addr_debug      :  in  std_logic_vector(31 downto 0)    
+
     );
 
 end  SH2_CPU;
@@ -140,16 +144,23 @@ architecture  structural  of  SH2_CPU  is
         port (
             ALUOpA   : in      std_logic_vector(31 downto 0);   -- first operand
             ALUOpB   : in      std_logic_vector(31 downto 0);   -- second operand
-            Cin      : in      std_logic;                       -- carry in
+            immd   : in  std_logic_vector(7 downto 0);   -- immediate value (IR 7-0)
+            T        : in      std_logic;                       -- T flag 
     
+            op_a_sel   : in    std_logic;
+            op_b_sel   : in    interger  range 0 to 2;
+            adder_cin_sel   : in    interger  range 0 to 2;
+            
             AddSub   : in      std_logic;                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
             ALUCmd   : in      std_logic_vector(1 downto 0);    -- ALU result select
             FCmd     : in      std_logic_vector(3 downto 0);    -- F-Block operation
             SCmd     : in      std_logic_vector(2 downto 0);    -- shift operation
-
+            
             Result   : buffer  std_logic_vector(31 downto 0);   -- ALU result
-            Cout     : out     std_logic;                       -- carry out
-            Overflow : out     std_logic                        -- signed overflow
+            C     : out     std_logic;                       -- carry out
+            V : out     std_logic                        -- overflow
+            S : out     std_logic                        -- sign
+            Z : out     std_logic                        -- zero                      -- signed overflow
         );
     end component;
 
@@ -185,20 +196,114 @@ architecture  structural  of  SH2_CPU  is
     signal SCmd     :   std_logic_vector(2 downto 0);    -- shift operation
     -- register
     signal reg_a_mux : std_logic;         -- select the first register to output
-    signal reg_b_mux : integer range 2 downto 0;         -- select the first register to output
-    signal reg_write_mux : integer range 2 downto 0;         -- select the register to write
-    
+    signal reg_b_mux : integer range 0 to 2;         -- select the first register to output
+    signal reg_write_addr_mux : integer range 0 to 2;         -- select the register to write
+    signal reg_write_addr_mux : integer range 0 to 2;         -- select the register to write
+    -- control register
+    signal LD_PC: std_logic;
+    signal LD_IR: std_logic;
+    signal LD_T: std_logic;
+    signal LD_S: std_logic;
+    signal LD_GBR: std_logic;
+    signal PC_in_sel : integer range 0 to 2;         -- select the register to write
 
+    
+-- registers
+    signal PC: std_logic_vector(31 downto 0);
+    signal IR: std_logic_vector(15 downto 0);
+    signal SR_I:  std_logic_vector(3 downto 0);
+    signal SR_S:  std_logic;
+    signal SR_T:  std_logic;
+    signal SR: std_logic_vector(31 downto 0);
 
 -- interconnect signals
     signal reg_sel_a : integer range 15 downto 0;         -- select the first register to output
     signal reg_sel_b : integer range 15 downto 0;         -- select the second register to output
     signal reg_out_a : std_logic_vector(31 downto 0);     -- the data output for the first register
     signal reg_out_b : std_logic_vector(31 downto 0)      -- the data output for the second register
+    signal program_address      : std_logic_vector(31 downto 0);   -- program address bus
+    signal data_address         : std_logic_vector(31 downto 0);   -- data address bus
+    signal program_addr_src_out : std_logic_vector(31 downto 0);
+    signal PC_in                : std_logic_vector(31 downto 0);
+
+
+-- delayed output for alu and data addressing unit (CL), 1 are registers
+    signal ALU_result_0         : std_logic_vector(31 downto 0);
+    signal ALU_result_1         : std_logic_vector(31 downto 0);
+    signal ALU_cout_0         : std_logic;
+    signal ALU_cout_1         : std_logic;
+    signal ALU_overflow_0         : std_logic;
+    signal ALU_overflow_1         : std_logic;
+    signal data_addr_writeback_0  : std_logic_vector(31 downto 0);
+    signal data_addr_writeback_1  : std_logic_vector(31 downto 0);
+
+    
+
+-- four stage pipeline
+    type controlUnitStates is (FE, DE, EX, WB);
+    signal state : controlUnitStates;
 
 begin
 
-    program_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
-    data_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
+    process (clk) begin
+        if rising_edge(clk) then
+-- simple FSM, loop between the four states
+
+            if (reset = '1') then 
+            
+                case state is
+                    when FE =>
+                        state <= DE;
+                    when DE =>
+                        state <= EX;
+                    when EX =>
+                        state <= WB;
+                    when WB =>
+                        state <= FE;
+                    when others =>
+                        state <= FE;
+                end case;
+
+                case PC_in_sel is
+                    when 0 =>
+                        PC <= PC;
+                    when 1 =>
+                        PC <= std_logic_vector(unsigned(PC))+2;
+                    when 2 =>
+                        PC <= program_addr_src_out;
+                    when others =>
+                        PC <= PC_reset_addr_debug;
+                end case;
+
+                if (LD_T) then
+                    SR_T <= SR_T_in;
+                end if;
+
+                if (LD_S) then
+                    SR_S <= SR_S_in;
+                end if;
+
+                ALU_result_1 <= ALU_result_0;
+                ALU_cout_1 <= ALU_cout_0;
+                ALU_overflow_1 <= ALU_overflow_0;
+                data_addr_writeback_1 <= data_addr_writeback_0;
+
+            else
+                PC <= PC_reset_addr_debug;
+                state <= FE;
+                SR_S <= 'x';
+                SR_T <= 'x';
+                SR_I <= "xxxx";
+            end if;
+
+            
+--             
+        end if;
+    end process;
+
+    
+
+
+
     
 end structural;

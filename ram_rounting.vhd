@@ -13,6 +13,7 @@ use work.RamAccessMode.all;
 
 entity RAMRouting is
     port (
+        EN          : in    std_logic;      -- 1 for enable, 0 for disable
         PD          : in    std_logic;      -- 0 for program, 1 for data memory 
         RW          : in    std_logic;      -- 0 for read, 1 for write, force read if program
         access_mode : in    std_logic_vector(1 downto 0);       -- force WORD_ACCESS if program     
@@ -130,16 +131,16 @@ begin
 
     end process;
 
-    RE0 <= byte0 and not(RW);
-    RE1 <= byte1 and not(RW);
-    RE2 <= byte2 and not(RW);
-    RE3 <= byte3 and not(RW);
+    RE0 <= (byte0 and not(RW)) and EN;
+    RE1 <= (byte1 and not(RW)) and EN;
+    RE2 <= (byte2 and not(RW)) and EN;
+    RE3 <= (byte3 and not(RW)) and EN;
 
     
-    WE0 <= byte0 and RW;
-    WE1 <= byte1 and RW;
-    WE2 <= byte2 and RW;
-    WE3 <= byte3 and RW;
+    WE0 <= byte0 and RW and EN;
+    WE1 <= byte1 and RW and EN;
+    WE2 <= byte2 and RW and EN;
+    WE3 <= byte3 and RW and EN;
 
 
 end structural;

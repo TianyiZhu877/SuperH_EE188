@@ -71,8 +71,8 @@ begin
         AddrSrc(1) <= (others => '0');
 
     -- inputs for offset selection, selected when OffsetSel:
-        AddrOff(0) <= Rm;                               -- 0
-        AddrOff(1) <= x"00000002";                  -- 1 inc dec val                              
+        AddrOff(0) <= x"00000002";                  -- 1 inc dec val 
+        AddrOff(1) <= Rm;                               -- 0                             
         AddrOff(2) <= (31 downto 13 => disp_internal(11)) & disp_internal & '0';    -- 3 (disp << 1)
     end process;
 
