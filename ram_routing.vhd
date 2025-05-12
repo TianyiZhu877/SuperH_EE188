@@ -20,9 +20,10 @@ entity RAMRouting is
         program_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
         data_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
 
-        wite_data :  in  std_logic_vector(31 downto 0);
+        write_data :  in  std_logic_vector(31 downto 0);
         DB      :  inout  std_logic_vector(31 downto 0);
         read_data  :  out  std_logic_vector(31 downto 0);
+        AB  :  out  std_logic_vector(31 downto 0);
 
         RE0     :  out    std_logic;                       -- first byte active low read enable
         RE1     :  out    std_logic;                       -- second byte active low read enable
@@ -32,7 +33,7 @@ entity RAMRouting is
         WE1     :  out    std_logic;                       -- second byte active low write enable
         WE2     :  out    std_logic;                       -- third byte active low write enable
         WE3     :  out    std_logic;                       -- fourth byte active low write enable
-        exception   : out   std_logic;
+        exception   : out   std_logic
     );
 
 end RAMRouting;
@@ -47,11 +48,11 @@ architecture  structural  of  RAMRouting  is
 
     signal MemAB:   std_logic_vector(31 downto 0); 
 
-    signal wite_data_internal : std_logic_vector(31 downto 0);
+    signal write_data_internal : std_logic_vector(31 downto 0);
     signal read_data_internal  : std_logic_vector(31 downto 0);
 
 begin
-    
+    AB <= MemAB;
     MemAB <= program_address  when   PD = '0' else
             data_address   when   PD = '1' else
             (others => 'X');
@@ -65,34 +66,34 @@ begin
 
                 case MemAB(1 downto 0) is
                     when "00" =>
-                        byte0 <= '1';
-                        byte1 <= '0';
-                        byte2 <= '0';
-                        byte3 <= '0';
+                        byte0 <= '0';
+                        byte1 <= '1';
+                        byte2 <= '1';
+                        byte3 <= '1';
                         read_data(7 downto 0) <= read_data_internal(7 downto 0);
                         write_data_internal(7 downto 0) <= write_data(7 downto 0);
 
                     when "01" =>
-                        byte0 <= '0';
-                        byte1 <= '1';
-                        byte2 <= '0';
-                        byte3 <= '0';
+                        byte0 <= '1';
+                        byte1 <= '0';
+                        byte2 <= '1';
+                        byte3 <= '1';
                         read_data(7 downto 0) <= read_data_internal(15 downto 8);
                         write_data_internal(15 downto 8) <= write_data(7 downto 0);
 
                     when "10" =>
-                        byte0 <= '0';
-                        byte1 <= '0';
-                        byte2 <= '1';
-                        byte3 <= '0';
+                        byte0 <= '1';
+                        byte1 <= '1';
+                        byte2 <= '0';
+                        byte3 <= '1';
                         read_data(7 downto 0) <= read_data_internal(23 downto 16);
                         write_data_internal(23 downto 16) <= write_data(7 downto 0);
 
                     when "11" =>
-                        byte0 <= '0';
-                        byte1 <= '0';
-                        byte2 <= '0';
-                        byte3 <= '1';
+                        byte0 <= '1';
+                        byte1 <= '1';
+                        byte2 <= '1';
+                        byte3 <= '0';
                         read_data(7 downto 0) <= read_data_internal(31 downto 24);
                         write_data_internal(31 downto 24) <= write_data(7 downto 0);
 
@@ -101,8 +102,8 @@ begin
                         byte1 <= 'X';
                         byte2 <= 'X';
                         byte3 <= 'X';
-                        read_data(7 downto 0) <= (others => 'x');
-                        write_data_internal <= (others => 'x');
+                        read_data(7 downto 0) <= (others => 'X');
+                        write_data_internal <= (others => 'X');
 
                 end case;
                     read_data(31 downto 8) <= (31 downto 8 => read_data(7));
@@ -114,17 +115,17 @@ begin
             when WORD_ACCESS =>
                 case MemAB(1) is
                     when '0' =>
-                        byte0 <= '1';
-                        byte1 <= '1';
-                        byte2 <= '0';
-                        byte3 <= '0';
-                        read_data(15 downto 0) <= read_data_internal(15 downto 0);
-                        write_data_internal(15 downto 0) <= write_data(15 downto 0);
-                    when '1' =>
                         byte0 <= '0';
                         byte1 <= '0';
                         byte2 <= '1';
                         byte3 <= '1';
+                        read_data(15 downto 0) <= read_data_internal(15 downto 0);
+                        write_data_internal(15 downto 0) <= write_data(15 downto 0);
+                    when '1' =>
+                        byte0 <= '1';
+                        byte1 <= '1';
+                        byte2 <= '0';
+                        byte3 <= '0';
                         read_data(15 downto 0) <= read_data_internal(31 downto 16);
                         write_data_internal(31 downto 16) <= write_data(15 downto 0);
 
@@ -133,8 +134,8 @@ begin
                         byte1 <= 'X';
                         byte2 <= 'X';
                         byte3 <= 'X';
-                        read_data(7 downto 0) <= (others => 'x');
-                        write_data_internal <= (others => 'x');
+                        read_data(7 downto 0) <= (others => 'X');
+                        write_data_internal <= (others => 'X');
                 end case;
                 read_data(31 downto 16) <= (31 downto 16 => read_data(15));
 
@@ -143,10 +144,10 @@ begin
 
 
             when LONG_ACCESS =>
-                byte0 <= '1';
-                byte1 <= '1';
-                byte2 <= '1';
-                byte3 <= '1';
+                byte0 <= '0';
+                byte1 <= '0';
+                byte2 <= '0';
+                byte3 <= '0';
                 read_data <= read_data_internal;
                 write_data_internal <= write_data;
 
@@ -158,15 +159,15 @@ begin
                 byte1 <= 'X';
                 byte2 <= 'X';
                 byte3 <= 'X';
-                read_data <= (others => 'x');
-                write_data_internal <= (others => 'x');
+                read_data <= (others => 'X');
+                write_data_internal <= (others => 'X');
                 
         end case;
 
     end process;
 
     read_data_internal <= DB;
-    DB <= write_data_internal  when ((EN = '1' and RW = '1')) else 'Z';
+    DB <= write_data_internal  when ((EN = '1' and RW = '1')) else (others => 'Z');
 
     RE0 <= (byte0 and not(RW)) and EN;
     RE1 <= (byte1 and not(RW)) and EN;

@@ -12,8 +12,8 @@ entity ALU is
         T        : in      std_logic;                       -- T flag 
 
         op_a_sel   : in    std_logic;
-        op_b_sel   : in    interger  range 0 to 2;
-        adder_cin_sel   : in    interger  range 0 to 2;
+        op_b_sel   : in    integer  range 0 to 2;
+        adder_cin_sel   : in    integer  range 0 to 2;
         
         AddSub   : in      std_logic;                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
         ALUCmd   : in      std_logic_vector(1 downto 0);    -- ALU result select
@@ -22,8 +22,8 @@ entity ALU is
         
         Result   : buffer  std_logic_vector(31 downto 0);   -- ALU result
         C     : out     std_logic;                       -- carry out
-        V : out     std_logic                        -- overflow
-        S : out     std_logic                        -- sign
+        V : out     std_logic;                        -- overflow
+        S : out     std_logic;                        -- sign
         Z : out     std_logic                        -- zero
     );
 end ALU;
@@ -74,23 +74,23 @@ begin
     
 
     ALUOpA_internal <= ALUOpA when op_a_sel = '0' else
-                    <= (others => '0') when op_a_sel = '1' else
-                    <= (others => 'x');
+                     (others => '0') when op_a_sel = '1' else
+                    (others => 'X');
 
     ALUOpB_internal <= ALUOpB when op_b_sel = 0 else
-                    <= (31 downto 8 => immd(7)) & immd when op_b_sel = 1 else
-                    <= (31 downto 8 => '0') & immd when op_b_sel = 2 else
-                    <= (others => 'x');
+                    (31 downto 8 => immd(7)) & immd when op_b_sel = 1 else
+                    (31 downto 8 => '0') & immd when op_b_sel = 2 else
+                    (others => 'X');
 
     Cin_internal <= Cin_add_sub when ALUCmd = ALUCmd_ADDER else
                     T       when ALUCmd = ALUCmd_SHIFT else
-                    'x';
+                    'X';
 
 -- block for flipping the opB and carry in in case of subtraction
     cin_adder <= '0' when adder_cin_sel = 0 else
                     T when adder_cin_sel = 1 else
                     '1' when adder_cin_sel = 2 else
-                'x';
+                'X';
     is_adder_and_subtracting <= ALUCmd(0) and (not AddSub);
     process (OpB_internal, ALUOpB, is_adder_and_subtracting, AddSub, ALUCmd, Cin_internal) begin        
         for i in ALUOpB'range loop

@@ -40,7 +40,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
+-- use ieee.std_logic_arith.all;
 use ieee.numeric_std.all;
 use work.RamAccessMode.all;
 
@@ -54,7 +54,7 @@ entity  SH2_CPU  is
         Reset   :  in     std_logic;                       -- reset signal (active low)
         NMI     :  in     std_logic;                       -- non-maskable interrupt signal (falling edge)
         INT     :  in     std_logic;                       -- maskable interrupt signal (active low)
-        clock   :  in     std_logic;                       -- system clock
+        clk   :  in     std_logic;                       -- system clock
         AB      :  out    std_logic_vector(31 downto 0);   -- memory address bus
         RE0     :  out    std_logic;                       -- first byte active low read enable
         RE1     :  out    std_logic;                       -- second byte active low read enable
@@ -64,17 +64,18 @@ entity  SH2_CPU  is
         WE1     :  out    std_logic;                       -- second byte active low write enable
         WE2     :  out    std_logic;                       -- third byte active low write enable
         WE3     :  out    std_logic;                       -- fourth byte active low write enable
-        DB      :  inout  std_logic_vector(31 downto 0)    -- memory data bus
+        DB      :  inout  std_logic_vector(31 downto 0);    -- memory data bus
 
         -- debug input signals
         PC_reset_addr_debug      :  in  std_logic_vector(31 downto 0);    
         -- debug probe signals
         IR_debug :  out  std_logic_vector(15 downto 0);
         PC_debug: out  std_logic_vector(31 downto 0);
-        data_address_debug: out  std_logic_vector(31 downto 0);
+        ram_data_address_debug: out  std_logic_vector(31 downto 0);
         PC_LD_sel_debug: out integer range 0 to 3; 
         ram_data_read_debug : out std_logic_vector(31 downto 0);
         reg_out_a_debug : out std_logic_vector(31 downto 0);
+        exception_debug : out std_logic
 
     );
 
@@ -86,15 +87,17 @@ end  SH2_CPU;
 architecture  structural  of  SH2_CPU  is
     component RAMRouting
         port (
+            EN          : in    std_logic;      -- 1 for enable, 0 for disable
             PD          : in    std_logic;      -- 0 for program, 1 for data memory 
             RW          : in    std_logic;      -- 0 for read, 1 for write, force read if program
             access_mode : in    std_logic_vector(1 downto 0);       -- force WORD_ACCESS if program     
             program_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
             data_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
         
-            wite_data :  in  std_logic_vector(31 downto 0);
+            write_data :  in  std_logic_vector(31 downto 0);
             DB      :  inout  std_logic_vector(31 downto 0);
             read_data  :  out  std_logic_vector(31 downto 0);
+            AB  :  out  std_logic_vector(31 downto 0);
 
             RE0     :  out    std_logic;                       -- first byte active low read enable
             RE1     :  out    std_logic;                       -- second byte active low read enable
@@ -104,7 +107,7 @@ architecture  structural  of  SH2_CPU  is
             WE1     :  out    std_logic;                       -- second byte active low write enable
             WE2     :  out    std_logic;                       -- third byte active low write enable
             WE3     :  out    std_logic;                       -- fourth byte active low write enable
-            exception   : out   std_logic;
+            exception   : out   std_logic
         );
     end component;
 
@@ -159,8 +162,8 @@ architecture  structural  of  SH2_CPU  is
             T        : in      std_logic;                       -- T flag 
     
             op_a_sel   : in    std_logic;
-            op_b_sel   : in    interger  range 0 to 2;
-            adder_cin_sel   : in    interger  range 0 to 2;
+            op_b_sel   : in    integer  range 0 to 2;
+            adder_cin_sel   : in    integer  range 0 to 2;
             
             AddSub   : in      std_logic;                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
             ALUCmd   : in      std_logic_vector(1 downto 0);    -- ALU result select
@@ -169,8 +172,8 @@ architecture  structural  of  SH2_CPU  is
             
             Result   : buffer  std_logic_vector(31 downto 0);   -- ALU result
             C     : out     std_logic;                       -- carry out
-            V : out     std_logic                        -- overflow
-            S : out     std_logic                        -- sign
+            V : out     std_logic;                        -- overflow
+            S : out     std_logic;                        -- sign
             Z : out     std_logic                        -- zero                      -- signed overflow
         );
     end component;
@@ -191,20 +194,24 @@ architecture  structural  of  SH2_CPU  is
     
 -- control signals
     -- memory
-    signal SrcSel_P      :    integer  range 3 downto 0;       -- singal for selection 
-    signal IncDecVal_P   :     std_logic_vector(3 downto 0);
-    signal OffsetSel_P   :    integer  range 4 downto 0;       -- singal for selection 
+    signal SrcSel_P      :    integer  range 1 downto 0;       -- singal for selection 
+    signal OffsetSel_P   :    integer  range 2 downto 0;       -- singal for selection 
     signal DispCutoff_P  :    integer  range 1 downto 0;       
     signal PrePostSel_P :      std_logic;
     signal SrcSel_D      :    integer  range 1 downto 0;       -- singal for selection 
+    signal IncDecVal_D   :     std_logic_vector(3 downto 0);
     signal OffsetSel_D   :    integer  range 2 downto 0;       -- singal for selection 
     signal DispCutoff_D  :    integer  range 1 downto 0;       
     signal PrePostSel_D :      std_logic;
     -- ALU
+    signal alu_op_a_sel   : std_logic;
+    signal alu_op_b_sel: integer  range 0 to 2;
+    signal adder_cin_sel : integer  range 0 to 2;
     signal AddSub   :   std_logic;                       -- 1 for add, 0 for sub, always the bit2 or 1 when 0111!  
     signal ALUCmd   :   std_logic_vector(1 downto 0);    -- ALU result select
     signal FCmd     :   std_logic_vector(3 downto 0);    -- F-Block operation
     signal SCmd     :   std_logic_vector(2 downto 0);    -- shift operation
+    signal ALU_opA_bypass: std_logic;
     -- register
     signal reg_read_a_mux : std_logic;         -- select the first register to output
     signal reg_read_b_mux : integer range 0 to 2;         -- select the first register to output
@@ -220,12 +227,12 @@ architecture  structural  of  SH2_CPU  is
     -- signal LD_GBR: std_logic;
     signal PC_LD_sel : integer range 0 to 3;         -- select the register to write
     signal GBR_LD_sel : integer range 0 to 2;         -- select the register to write
-    signal LD_PR : std_logic;         -- select the register to write
     -- RAM routing
     signal ram_EN          : std_logic;      -- 1 for enable, 0 for disable
     signal ram_PD          : std_logic;      -- 0 for program, 1 for data memory 
     signal ram_RW          : std_logic;      -- 0 for read, 1 for write, force read if program
     signal ram_access_mode : std_logic_vector(1 downto 0);       -- force WORD_ACCESS if program 
+
 
 -- pipeline registers
     signal opcode: std_logic_vector(15 downto 0);
@@ -234,6 +241,7 @@ architecture  structural  of  SH2_CPU  is
     signal PC: std_logic_vector(31 downto 0);
     signal PR: std_logic_vector(31 downto 0);
     signal IR: std_logic_vector(15 downto 0);
+    signal GBR: std_logic_vector(31 downto 0);
     signal SR_I:  std_logic_vector(3 downto 0);
     signal SR_S:  std_logic;
     signal SR_T:  std_logic;
@@ -243,19 +251,26 @@ architecture  structural  of  SH2_CPU  is
     signal reg_sel_a : integer range 15 downto 0;         -- select the first register to output
     signal reg_sel_b : integer range 15 downto 0;         -- select the second register to output
     signal reg_out_a : std_logic_vector(31 downto 0);     -- the data output for the first register
-    signal reg_out_b : std_logic_vector(31 downto 0)      -- the data output for the second register
+    signal reg_out_b : std_logic_vector(31 downto 0);      -- the data output for the second register
     signal program_address      : std_logic_vector(31 downto 0);   -- program address bus
-    signal data_address         : std_logic_vector(31 downto 0);   -- data address bus
+    signal ram_data_address         : std_logic_vector(31 downto 0);   -- data address bus
     signal program_addr_src_out : std_logic_vector(31 downto 0);
     signal PC_pre                : std_logic_vector(31 downto 0);
-    signal wite_data : std_logic_vector(31 downto 0);
-    signal read_data  : std_logic_vector(31 downto 0);
+    -- signal write_data : std_logic_vector(31 downto 0);
+    -- signal read_data  : std_logic_vector(31 downto 0);
     signal ram_data_read : std_logic_vector(31 downto 0);
-    -- ram signals
+    -- register signals
     signal reg_write_in: std_logic_vector(31 downto 0);
     signal reg_write_addr: integer range 15 downto 0;
     signal reg_read_b: integer range 15 downto 0;
     signal reg_read_a: integer range 15 downto 0;
+    -- alu flags
+    signal ALU_C: std_logic;
+    signal ALU_V: std_logic;
+    signal ALU_S: std_logic;
+    signal ALU_Z: std_logic;
+    signal SR_T_in: std_logic;
+    signal SR_S_in: std_logic;
 
 
 -- delayed output for alu and data addressing unit (CL), 1 are registers
@@ -269,20 +284,22 @@ architecture  structural  of  SH2_CPU  is
     signal data_addr_writeback_1  : std_logic_vector(31 downto 0);
     signal reg_b_buffer:        std_logic_vector(31 downto 0);
 
-    
+-- exceptions from components
+    signal ram_exception : std_logic;    
 
--- four stage pipeline
+-- for four stage pipeline
     -- type controlUnitStates is (FE, DE, EX, WB);
-    signal controlUnitStates : std_logic_vector(1 downto 0);
+    signal state : std_logic_vector(1 downto 0);
 
 begin
 -- connecting debug lines
     IR_debug <= IR;
     PC_debug <= PC;
-    data_address_debug <= data_address;
+    ram_data_address_debug <= ram_data_address;
     PC_LD_sel_debug <= PC_LD_sel; 
     ram_data_read_debug <= ram_data_read;
     reg_out_a_debug <= reg_out_a;
+    exception_debug <= ram_exception;
 
 
 -- PC increment
@@ -292,7 +309,7 @@ begin
             PR  when PC_LD_sel = 3  else
             PC_reset_addr_debug;
 
-    process (clk) begin
+    process(clk) begin
         if rising_edge(clk) then
 
             if (reset = '1') then 
@@ -318,7 +335,7 @@ begin
                 elsif (LD_PR = '0') then
                     PR <= PR;
                 else
-                    PR <= (others => 'x');
+                    PR <= (others => 'X');
                 end if;
 
                 if (LD_IR = '1') then
@@ -326,27 +343,27 @@ begin
                 elsif (LD_IR = '0') then
                     IR <= IR;
                 else
-                    IR <= (others => 'x');
+                    IR <= (others => 'X');
                 end if;
 
                 if (GBR_LD_sel = 0) then
                     GBR <= GBR;
                 elsif (GBR_LD_sel = 1) then
-                    GBR <= reg_v_buffer;
+                    GBR <= reg_b_buffer;
                 elsif (GBR_LD_sel = 2) then
-                    GBR <= read_data;
+                    GBR <= ram_data_read;
                 else
-                    GBR <= (others => 'x');
+                    GBR <= (others => 'X');
                 end if;
 
 
-    -- SR
+    -- SR       to-do: implement these!!!
                 if (LD_T) then
-                    SR_T <= SR_T_in;
+                    SR_T <= '0';   
                 end if;
 
                 if (LD_S) then
-                    SR_S <= SR_S_in;
+                    SR_S <= '0';            
                 end if;
 
     -- ALU results
@@ -355,7 +372,7 @@ begin
                 elsif (ALU_opA_bypass = '0') then
                     ALU_result_1 <= ALU_result_0;
                 else
-                    ALU_result_1 <= (others => 'x');
+                    ALU_result_1 <= (others => 'X');
                 end if;
                 ALU_cout_1 <= ALU_cout_0;
                 ALU_overflow_1 <= ALU_overflow_0;
@@ -370,9 +387,9 @@ begin
             else
                 PC <= PC_reset_addr_debug;
                 state <= "00";
-                SR_S <= 'x';
-                SR_T <= 'x';
-                SR_I <= "xxxx";
+                SR_S <= 'X';
+                SR_T <= 'X';
+                SR_I <= "XXXX";
             end if;
                  
         end if;
@@ -380,31 +397,36 @@ begin
 
 
     -- only for unpipelined
-    opcode <= ram_data_read(15 downto 0) when state = '01' else
+    opcode <= ram_data_read(15 downto 0) when state = "01" else
                     IR;
 
 -- decoding
     process(all) begin
         
         SrcSel_P <= 0;       -- singal for selection 
-        IncDecVal_P <= 0;
         OffsetSel_P <= 0;       -- singal for selection 
         DispCutoff_P <= 0;       
         PrePostSel_P <= '0';
         SrcSel_D <= 0;       -- singal for selection 
+        IncDecVal_D <= "0000";
         OffsetSel_D <= 0;       -- singal for selection 
         DispCutoff_D <= 0;       
         PrePostSel_D <= '0';
         -- ALU
+        alu_op_a_sel <= '0'; 
+        alu_op_b_sel <= 0;
+        adder_cin_sel <= 0;
         AddSub <= '0';                       -- 1 for add, 0 for sub, always the bit2 or 1 when 0111!  
-        ALUCmd <= '0';    -- ALU result select
+        ALUCmd <= "00";    -- ALU result select
         FCmd <= "0000";    -- F-Block operation
         SCmd <= "000";    -- shift operation
+        ALU_opA_bypass <= '0';
         -- register
-         reg_a_mux <= '0';         -- select the first register to output
-        reg_b_mux <= 0;         -- select the first register to output
+        reg_read_a_mux <= '0';         -- select the first register to output
+        reg_read_b_mux <= 0;         -- select the first register to output
         reg_write_addr_mux <= 0;         -- select the register to write
-        reg_write_addr_mux <= 0;         -- select the register to write
+        reg_write_in_mux <= 0;         -- select the register to write
+        reg_write_en <= '0';
         -- control register
         LD_PR <= '0';
         LD_IR <= '0';
@@ -419,16 +441,17 @@ begin
         ram_RW  <= '0';      -- 0 for read, 1 for write, force read if program
         ram_access_mode <= "00";       -- force WORD_ACCESS if program 
 
-        if (state = '00') then
-            EN <= '1';
-            RW <= '0';
+        if (state = "00") then
+            ram_EN <= '1';
+            ram_RW <= '0';
             ram_access_mode <= WORD_ACCESS;
-            PD <= '0';
+            ram_PD <= '0';
+            LD_IR <= '1';
         end if;
 
     -- to-do: unpipelined only!
-        if (state = '01') then
-            PC_LD_sel = 1;
+        if (state = "01") then
+            PC_LD_sel <= 1;
         end if;
 
         case opcode(15 downto 12) is
@@ -436,14 +459,14 @@ begin
                 if (opcode(3 downto 0) = "1011") then 
                     if (opcode(7 downto 4) = "0001") then
                         -- SLEEP   0000 0000 0001 1011
-                        if (state = '01') then
-                            PC_LD_sel = 0;
+                        if (state = "01") then
+                            PC_LD_sel <= 0;
                         end if;
 
                     end if;
                 end if;
             
-            others =>
+            when others =>
                 null;
         end case;
     
@@ -452,100 +475,122 @@ begin
 
 -- register input select
     reg_read_a  <= to_integer(unsigned(opcode(11 downto 8))) when  reg_read_a_mux = '0'  else
-                <=  to_integer(unsigned(opcode(7 downto 4))) when   reg_read_a_mux = '1'  else
-                <= 10;     
+                to_integer(unsigned(opcode(7 downto 4))) when   reg_read_a_mux = '1'  else
+                10;     
     reg_read_b <= to_integer(unsigned(opcode(11 downto 8))) when  reg_read_b_mux = 0  else
-                <=  to_integer(unsigned(opcode(7 downto 4))) when   reg_read_b_mux = 1  else
-                <= 0 when   reg_read_b_mux = 2  else
-                <= 11;  
+                to_integer(unsigned(opcode(7 downto 4))) when   reg_read_b_mux = 1  else
+                 0 when   reg_read_b_mux = 2  else
+                11;  
     reg_write_addr <= to_integer(unsigned(opcode(11 downto 8))) when  reg_read_b_mux = 0  else
-            <=  to_integer(unsigned(opcode(7 downto 4))) when   reg_read_b_mux = 1  else
-            <=  0 when   reg_read_b_mux = 2  else
-            <= 12;              -- to-do: change to opcode_WB for pipelined!!!
+            to_integer(unsigned(opcode(7 downto 4))) when   reg_read_b_mux = 1  else
+             0 when   reg_read_b_mux = 2  else
+            12;              -- to-do: change to opcode_WB for pipelined!!!
     reg_write_in <= data_addr_writeback_1 when reg_write_in_mux = 0 else
                 ALU_result_1 when reg_write_in_mux = 1 else
                 ram_data_read when reg_write_in_mux = 2 else
-                (others => 'x');
+                (others => 'X');
 
 -- connecting components
 
     data_addr_unit:  dataAddrUnit
         port map (
         -- inputs for base addr
-            SrcSel      => SrcSel_D;       -- singal for selection 
-            PC          => PC;  -- to-do: might be changed later
-            Rn          => reg_out_a;   -- selected when 1
-            GBR         => GBR;   -- selected when 2
+            SrcSel      => SrcSel_D,       -- singal for selection 
+            PC          => PC,  -- to-do: might be changed later
+            Rn          => reg_out_a,   -- selected when 1
+            GBR         => GBR,   -- selected when 2
         -- inputs for offset
-            OffsetSel   => OffsetSel_D;       -- singal for selection 
-            R0          => reg_out_b;  -- selected when 0
-            IncDecVal   => IncDecVal_D;
+            OffsetSel   => OffsetSel_D,       -- singal for selection 
+            R0          => reg_out_b,  -- selected when 0
+            IncDecVal   => IncDecVal_D,
             -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
-            Disp     => opcode(7 downto 0);  
+            Disp     => opcode(7 downto 0),  
             -- choose to use last 0 (4 bits), 1 (8 bits) of disp
-            DispCutoff  => DispCutoff_D;       
+            DispCutoff  => DispCutoff_D,       
         -- signals from control unit, directly connect to the wrapped general mau
-            PrePostSel => PrePostSel_D;
+            PrePostSel => PrePostSel_D,
         -- outputs, directly connects to the wrapped general mau output
-            Address    => data_address;
-            AddrSrcOut => data_addr_writeback_0;
+            Address    => ram_data_address,
+            AddrSrcOut => data_addr_writeback_0
         );
 
         program_addr_unit:  programAddrUnit
             port map(
             -- inputs for base addr
-                SrcSel => SrcSel_P;       -- singal for selection 
-                PC  => PC_EX;  -- selected when 0
+                SrcSel => SrcSel_P,       -- singal for selection 
+                PC  => PC_EX,  -- selected when 0
             -- inputs for offset
-                OffsetSel => OffsetSel_P;       -- singal for selection 
-                Rm  => reg_out_b;  -- selected when 0
+                OffsetSel => OffsetSel_P,       -- singal for selection 
+                Rm  => reg_out_b,  -- selected when 0
                 -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
-                Disp => opcode(11 downto 0);  
+                Disp => opcode(11 downto 0),  
                 -- choose to use last 0 (4 bits), 1 (8 bits) of disp
-                DispCutoff => DispCutoff_P;       
+                DispCutoff => DispCutoff_P,       
             -- signals from control unit, directly connect to the wrapped general mau
-                PrePostSel => '1';
+                PrePostSel => '1',
             -- outputs, directly connects to the wrapped general mau output
-                Address => open;
-                AddrSrcOut => program_addr_src_out;
+                Address => open,
+                AddrSrcOut => program_addr_src_out
             );
 
 
         reg_file: RegFile
             port map (
-                clk        => clk;                         -- clock
-                data_in    => reg_write_in;     -- the data to write to a register
-                write_en   => reg_write_en;                         -- write the data if 1
-                write_sel  => reg_write_addr;         -- select which reg to write to
-                read_sel_a => reg_read_a;         -- select the first register to output
-                read_sel_b => reg_read_b;         -- select the second register to output
-                data_out_a => reg_out_a;     -- the data output for the first register
+                clk        => clk,                         -- clock
+                data_in    => reg_write_in,     -- the data to write to a register
+                write_en   => reg_write_en,                         -- write the data if 1
+                write_sel  => reg_write_addr,         -- select which reg to write to
+                read_sel_a => reg_read_a,         -- select the first register to output
+                read_sel_b => reg_read_b,         -- select the second register to output
+                data_out_a => reg_out_a,     -- the data output for the first register
                 data_out_b => reg_out_b      -- the data output for the second register
             );
     
             alu_0: ALU
                 port map(
-                    ALUOpA  => reg_out_a;   -- first operand
-                    ALUOpB  => reg_out_b;   -- second operand
-                    immd   => opcode(7 downto 0);   -- immediate value (IR 7-0)
-                    T     => SR_T;                       -- T flag 
-            
-                    op_a_sel  => ;
-                    op_b_sel   : in    interger  range 0 to 2;
-                    adder_cin_sel   : in    interger  range 0 to 2;
+                    ALUOpA  => reg_out_a,   -- first operand
+                    ALUOpB  => reg_out_b,   -- second operand
+                    immd   => opcode(7 downto 0),   -- immediate value (IR 7-0)
+                    T     => SR_T,                       -- T flag 
+                    op_a_sel  => alu_op_a_sel,
+                    op_b_sel => alu_op_b_sel,
+                    adder_cin_sel => adder_cin_sel,
+                    AddSub   => AddSub,                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
+                    ALUCmd   => ALUCmd,    -- ALU result select
+                    FCmd    => FCmd,    -- F-Block operation
+                    SCmd    => SCmd,    -- shift operation
                     
-                    AddSub   : in      std_logic;                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
-                    ALUCmd   : in      std_logic_vector(1 downto 0);    -- ALU result select
-                    FCmd     : in      std_logic_vector(3 downto 0);    -- F-Block operation
-                    SCmd     : in      std_logic_vector(2 downto 0);    -- shift operation
-                    
-                    Result   : buffer  std_logic_vector(31 downto 0);   -- ALU result
-                    C     : out     std_logic;                       -- carry out
-                    V : out     std_logic                        -- overflow
-                    S : out     std_logic                        -- sign
-                    Z : out     std_logic                        -- zero
+                    Result  => ALU_result_0,   -- ALU result
+                    C   => ALU_C,                       -- carry out
+                    V => ALU_V,                        -- overflow
+                    S => ALU_S,                    -- sign
+                    Z => ALU_Z                        -- zero
                 );
 
+        ram_rounting_0: RAMRouting
+            port map (
+                EN  => ram_EN,      -- 1 for enable, 0 for disable
+                PD  => ram_PD,      -- 0 for program, 1 for data memory 
+                RW  => ram_RW,      -- 0 for read, 1 for write, force read if program
+                access_mode => ram_access_mode,       -- force WORD_ACCESS if program     
+                program_address => PC_pre,   -- memory address bus
+                data_address  => ram_data_address,   -- memory address bus
 
+                write_data => reg_out_b,
+                DB     => DB,
+                read_data => ram_data_read,
+                AB => AB,
+                
+
+                RE0   => RE0,                       -- first byte active low read enable
+                RE1  => RE1,                       -- second byte active low read enable
+                RE2  => RE2,                       -- third byte active low read enable
+                RE3  => RE3,                       -- fourth byte active low read enable
+                WE0 => WE0,                       -- first byte active low write enable
+                WE1 => WE1,                       -- second byte active low write enable
+                WE2 => WE2,                       -- third byte active low write enable
+                WE3 => WE3,                       -- fourth byte active low write enable
+                exception => ram_exception
+            );
     
 end structural;

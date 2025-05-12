@@ -68,7 +68,7 @@ architecture  behavioral  of  dataAddrUnit  is
     signal disp_internal: std_logic_vector(11 downto 0);        
 
 -- inputs to general mau:
-    signal AddrSrc: std_logic_array(2 downto 0)(31 downto 0);   
+    signal AddrSrc: std_logic_array(3 downto 0)(31 downto 0);   
     signal AddrOff: std_logic_array(4 downto 0)(31 downto 0);
 
 begin
