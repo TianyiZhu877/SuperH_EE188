@@ -19,7 +19,11 @@ entity RAMRouting is
         access_mode : in    std_logic_vector(1 downto 0);       -- force WORD_ACCESS if program     
         program_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
         data_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
-        
+
+        wite_data :  in  std_logic_vector(31 downto 0);
+        DB      :  inout  std_logic_vector(31 downto 0);
+        read_data  :  out  std_logic_vector(31 downto 0);
+
         RE0     :  out    std_logic;                       -- first byte active low read enable
         RE1     :  out    std_logic;                       -- second byte active low read enable
         RE2     :  out    std_logic;                       -- third byte active low read enable
@@ -43,6 +47,8 @@ architecture  structural  of  RAMRouting  is
 
     signal MemAB:   std_logic_vector(31 downto 0); 
 
+    signal wite_data_internal : std_logic_vector(31 downto 0);
+    signal read_data_internal  : std_logic_vector(31 downto 0);
 
 begin
     
@@ -63,27 +69,43 @@ begin
                         byte1 <= '0';
                         byte2 <= '0';
                         byte3 <= '0';
+                        read_data(7 downto 0) <= read_data_internal(7 downto 0);
+                        write_data_internal(7 downto 0) <= write_data(7 downto 0);
+
                     when "01" =>
                         byte0 <= '0';
                         byte1 <= '1';
                         byte2 <= '0';
                         byte3 <= '0';
+                        read_data(7 downto 0) <= read_data_internal(15 downto 8);
+                        write_data_internal(15 downto 8) <= write_data(7 downto 0);
+
                     when "10" =>
                         byte0 <= '0';
                         byte1 <= '0';
                         byte2 <= '1';
                         byte3 <= '0';
+                        read_data(7 downto 0) <= read_data_internal(23 downto 16);
+                        write_data_internal(23 downto 16) <= write_data(7 downto 0);
+
                     when "11" =>
                         byte0 <= '0';
                         byte1 <= '0';
                         byte2 <= '0';
                         byte3 <= '1';
+                        read_data(7 downto 0) <= read_data_internal(31 downto 24);
+                        write_data_internal(31 downto 24) <= write_data(7 downto 0);
+
                     when others =>
                         byte0 <= 'X';
                         byte1 <= 'X';
                         byte2 <= 'X';
                         byte3 <= 'X';
+                        read_data(7 downto 0) <= (others => 'x');
+                        write_data_internal <= (others => 'x');
+
                 end case;
+                    read_data(31 downto 8) <= (31 downto 8 => read_data(7));
 
                 exception <= '0';
 
@@ -96,17 +118,25 @@ begin
                         byte1 <= '1';
                         byte2 <= '0';
                         byte3 <= '0';
+                        read_data(15 downto 0) <= read_data_internal(15 downto 0);
+                        write_data_internal(15 downto 0) <= write_data(15 downto 0);
                     when '1' =>
                         byte0 <= '0';
                         byte1 <= '0';
                         byte2 <= '1';
                         byte3 <= '1';
+                        read_data(15 downto 0) <= read_data_internal(31 downto 16);
+                        write_data_internal(31 downto 16) <= write_data(15 downto 0);
+
                     when others =>
                         byte0 <= 'X';
                         byte1 <= 'X';
                         byte2 <= 'X';
                         byte3 <= 'X';
+                        read_data(7 downto 0) <= (others => 'x');
+                        write_data_internal <= (others => 'x');
                 end case;
+                read_data(31 downto 16) <= (31 downto 16 => read_data(15));
 
                 exception <= MemAB(0);
 
@@ -117,6 +147,8 @@ begin
                 byte1 <= '1';
                 byte2 <= '1';
                 byte3 <= '1';
+                read_data <= read_data_internal;
+                write_data_internal <= write_data;
 
                 exception <= MemAB(0) or MemAB(1);
 
@@ -126,10 +158,15 @@ begin
                 byte1 <= 'X';
                 byte2 <= 'X';
                 byte3 <= 'X';
+                read_data <= (others => 'x');
+                write_data_internal <= (others => 'x');
                 
         end case;
 
     end process;
+
+    read_data_internal <= DB;
+    DB <= write_data_internal  when ((EN = '1' and RW = '1')) else 'Z';
 
     RE0 <= (byte0 and not(RW)) and EN;
     RE1 <= (byte1 and not(RW)) and EN;
