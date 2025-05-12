@@ -397,8 +397,10 @@ begin
 
 
     -- only for unpipelined
-    opcode <= ram_data_read(15 downto 0) when state = "01" else
-                    IR;
+    -- opcode <= ram_data_read(15 downto 0) when state = "01" else
+    --                 IR;
+                    
+    opcode <= IR;
 
 -- decoding
     process(all) begin

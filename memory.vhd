@@ -156,7 +156,7 @@ begin
 
         -- wait for an input to change
         -- wait on  RE, RE0, RE1, RE2, RE3, WE, WE0, WE1, WE2, WE3, MemAB;
-        wait on  clk;
+        if  rising_edge(clk)  then
 
         -- first check if reading
         if  (RE = '0')  then
@@ -253,10 +253,11 @@ begin
             end if;
 
             -- wait for the update to happen
-            wait for 0 ns;
+            -- wait for 0 ns;
 
         end if;
 
+    end if;
         -- finally check if WE low with the address changing
         if  (MemAB'event and (WE = '0'))  then
             -- output error message
@@ -264,6 +265,7 @@ begin
             SEVERITY  ERROR;
             end if;
         end if;
+
 
     end process;
 
