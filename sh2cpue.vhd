@@ -87,6 +87,7 @@ end  SH2_CPU;
 architecture  structural  of  SH2_CPU  is
     component RAMRouting
         port (
+            clk          : in    std_logic;  
             EN          : in    std_logic;      -- 1 for enable, 0 for disable
             PD          : in    std_logic;      -- 0 for program, 1 for data memory 
             RW          : in    std_logic;      -- 0 for read, 1 for write, force read if program
@@ -314,12 +315,13 @@ begin
 
             if (reset = '1') then 
             
--- simple FSM, loop between the four states
+-- simple FSM, loop between the three states for unpipelined
+-- the DE and EX is also merged!!!
                 case state is
                     when "00" =>
-                        state <= "01";
-                    when "01" =>
                         state <= "10";
+                    -- when "01" =>
+                    --     state <= "10";
                     when "10" =>
                         state <= "11";
                     when "11" =>
@@ -397,10 +399,9 @@ begin
 
 
     -- only for unpipelined
-    -- opcode <= ram_data_read(15 downto 0) when state = "01" else
-    --                 IR;
-                    
-    opcode <= IR;
+    opcode <= ram_data_read(15 downto 0) when state = "10" else
+                    IR;
+    -- opcode <= IR;
 
 -- decoding
     process(all) begin
@@ -448,12 +449,12 @@ begin
             ram_RW <= '0';
             ram_access_mode <= WORD_ACCESS;
             ram_PD <= '0';
-            LD_IR <= '1';
         end if;
 
     -- to-do: unpipelined only!
-        if (state = "01") then
+        if (state = "10") then
             PC_LD_sel <= 1;
+            LD_IR <= '1';
         end if;
 
         case opcode(15 downto 12) is
@@ -461,7 +462,7 @@ begin
                 if (opcode(3 downto 0) = "1011") then 
                     if (opcode(7 downto 4) = "0001") then
                         -- SLEEP   0000 0000 0001 1011
-                        if (state = "01") then
+                        if (state = "10") then
                             PC_LD_sel <= 0;
                         end if;
 
@@ -571,6 +572,7 @@ begin
 
         ram_rounting_0: RAMRouting
             port map (
+                clk => clk,
                 EN  => ram_EN,      -- 1 for enable, 0 for disable
                 PD  => ram_PD,      -- 0 for program, 1 for data memory 
                 RW  => ram_RW,      -- 0 for read, 1 for write, force read if program
