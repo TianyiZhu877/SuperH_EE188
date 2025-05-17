@@ -490,6 +490,114 @@ begin
                         reg_write_addr_mux <= 0;
                     end if;
 
+                elsif (opcode(3 downto 0) = "0100") then 
+                    if (state = "10") then
+                        reg_read_a_mux <= '0';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 0;
+                        PrePostSel_D <= '0';
+                        ram_RW <= '1';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                        reg_read_b_mux <= 1;
+                        ram_access_mode <= BYTE_ACCESS;
+                    end if;
+
+
+                        
+                elsif (opcode(3 downto 0) = "0100") then 
+                    if (state = "10") then
+                        reg_read_a_mux <= '0';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 0;
+                        PrePostSel_D <= '0';
+                        ram_RW <= '1';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                        reg_read_b_mux <= 1;
+                        ram_access_mode <= BYTE_ACCESS;
+                    end if;
+
+                
+                elsif (opcode(3 downto 0) = "0101") then 
+                    if (state = "10") then
+                        reg_read_a_mux <= '0';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 0;
+                        PrePostSel_D <= '0';
+                        ram_RW <= '1';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                        reg_read_b_mux <= 1;
+                        ram_access_mode <= WORD_ACCESS;
+                    end if;
+
+                        
+                
+                elsif (opcode(3 downto 0) = "0110") then 
+                    if (state = "10") then
+                        reg_read_a_mux <= '0';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 0;
+                        PrePostSel_D <= '0';
+                        ram_RW <= '1';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                        reg_read_b_mux <= 1;
+                        ram_access_mode <= LONG_ACCESS;
+                    end if;
+
+
+                elsif (opcode(3 downto 0) = "1100") then 
+                    if (state = "10") then
+                        reg_read_a_mux <= '1';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 0;
+                        PrePostSel_D <= '0';
+                        ram_RW <= '0';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                        ram_access_mode <= BYTE_ACCESS;
+                    elsif (state = "11") then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 0;
+                    end if;
+                    
+                elsif (opcode(3 downto 0) = "1101") then 
+                    if (state = "10") then
+                        reg_read_a_mux <= '1';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 0;
+                        PrePostSel_D <= '0';
+                        ram_RW <= '0';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                        ram_access_mode <= WORD_ACCESS;
+                    elsif (state = "11") then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 0;
+                    end if;
+
+
+                        
+                elsif (opcode(3 downto 0) = "1110") then 
+                    if (state = "10") then
+                        reg_read_a_mux <= '1';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 0;
+                        PrePostSel_D <= '0';
+                        ram_RW <= '0';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                        ram_access_mode <= LONG_ACCESS;
+                    elsif (state = "11") then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 0;
+                    end if;
+
                     
                 elsif (opcode(3 downto 0) = "1010") then 
                     if (state = "11") then

@@ -170,7 +170,7 @@ begin
     OffsetVal <= AddrOff(OffsetSel);
     SumVal <= std_logic_vector(unsigned(SrcVal) + unsigned(OffsetVal));
 
-    Address <=  SrcVal when PrePostSel = '0' else
+    Address <=  SrcVal when PrePostSel = '1' else
                 SumVal;
 
     AddrSrcOut  <=  SumVal;
