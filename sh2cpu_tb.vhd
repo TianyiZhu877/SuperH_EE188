@@ -17,7 +17,7 @@ architecture sim of SH2_CPU_tb is
     signal DB                     : std_logic_vector(31 downto 0) := (others => 'Z');
 
     signal PC_reset_addr_debug    : std_logic_vector(31 downto 0) := (others => '0');    
-    signal IR_debug : std_logic_vector(15 downto 0);
+    signal opcode_debug : std_logic_vector(15 downto 0);
     signal PC_debug:   std_logic_vector(31 downto 0);
     signal ram_data_address_debug:   std_logic_vector(31 downto 0);
     signal PC_LD_sel_debug:  integer range 0 to 3; 
@@ -69,7 +69,7 @@ architecture sim of SH2_CPU_tb is
             -- debug input signals
             PC_reset_addr_debug      :  in  std_logic_vector(31 downto 0);    
             -- debug probe signals
-            IR_debug :  out  std_logic_vector(15 downto 0);
+            opcode_debug :  out  std_logic_vector(15 downto 0);
             PC_debug: out  std_logic_vector(31 downto 0);
             ram_data_address_debug: out  std_logic_vector(31 downto 0);
             PC_LD_sel_debug: out integer range 0 to 3; 
@@ -103,7 +103,7 @@ begin
             DB                  => DB,
 
             PC_reset_addr_debug => PC_reset_addr_debug,
-            IR_debug            => IR_debug,
+            opcode_debug            => opcode_debug,
             PC_debug            => PC_debug,
             PC_LD_sel_debug     => PC_LD_sel_debug,
             ram_data_read_debug => ram_data_read_debug,

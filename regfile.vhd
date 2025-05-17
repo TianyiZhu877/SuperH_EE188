@@ -50,6 +50,8 @@ architecture behavioral of RegFile is
         );
     end component;
 
+
+
 begin
 
     u_reg_array: RegArray

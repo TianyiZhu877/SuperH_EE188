@@ -17,7 +17,7 @@ use work.array_type_pkg.all;
 entity  dataAddrUnit  is
     port (
     -- inputs for base addr
-        SrcSel      : in    integer  range 3 downto 0;       -- singal for selection 
+        SrcSel      : in    integer  range 4 downto 0;       -- singal for selection 
         PC          : in     std_logic_vector(31 downto 0);  -- selected when 0
         Rn          : in     std_logic_vector(31 downto 0);   -- selected when 1
         GBR         : in     std_logic_vector(31 downto 0);   -- selected when 2
@@ -65,10 +65,11 @@ architecture  behavioral  of  dataAddrUnit  is
     end component;
 
 -- imtermeidate after cutting off bits of disp:
-    signal disp_internal: std_logic_vector(11 downto 0);        
+    signal disp_internal: std_logic_vector(11 downto 0);   
+    signal PC_plus_4: std_logic_vector(31 downto 0);        
 
 -- inputs to general mau:
-    signal AddrSrc: std_logic_array(3 downto 0)(31 downto 0);   
+    signal AddrSrc: std_logic_array(4 downto 0)(31 downto 0);   
     signal AddrOff: std_logic_array(4 downto 0)(31 downto 0);
 
 begin
@@ -77,13 +78,14 @@ begin
                         (11 downto 4 => Disp(3)) & Disp(3 downto 0)  when DispCutoff = 0  else
                         (others => 'X');
 
-
+    PC_plus_4 <= std_logic_vector(unsigned(PC) + 4);
     process (all) begin
     -- for base addr selections, selected when SrcSel:
-        AddrSrc(0) <= PC;                       -- 0
-        AddrSrc(1) <= Rn;                       -- 1
-        AddrSrc(2) <= GBR;                      -- 2
-        AddrSrc(3) <= (others => '0');                      -- 3
+        AddrSrc(0) <= Rn;                       -- 0
+        AddrSrc(1) <= PC_plus_4;                -- 1
+        AddrSrc(2) <= PC_plus_4(31 downto 2) & "00";                -- 2
+        AddrSrc(3) <= GBR;                      -- 3
+        AddrSrc(4) <= (others => '0');                      -- 4
 
     -- inputs for offset selection, selected when OffsetSel:
         AddrOff(0) <= R0;                               -- 0
@@ -95,7 +97,7 @@ begin
 
     mau_general: MemUnit
         generic map (
-            srcCnt   => 4,
+            srcCnt   => 5,
             offsetCnt => 5,
             wordsize => 32               -- 32-bit address bus
         )

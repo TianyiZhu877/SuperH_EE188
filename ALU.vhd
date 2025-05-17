@@ -61,11 +61,11 @@ architecture structural of ALU is
     signal Cin_add_sub :  std_logic;
     signal cin_adder :  std_logic;
     signal Cin_internal: std_logic;
-    signal OpB_internal: std_logic_vector(31 downto 0);
     -- signal immd_sext: std_logic_vector(31 downto 0);
     -- signal immd_ext: std_logic_vector(31 downto 0);
     signal ALUOpA_internal : std_logic_vector(31 downto 0); 
     signal ALUOpB_internal : std_logic_vector(31 downto 0); 
+    signal ALUOpB_flipped_for_adder: std_logic_vector(31 downto 0);
 
     -- signal Overflow_internal: std_logic;
     -- signal Sign_internal: std_logic;
@@ -92,9 +92,9 @@ begin
                     '1' when adder_cin_sel = 2 else
                 'X';
     is_adder_and_subtracting <= ALUCmd(0) and (not AddSub);
-    process (OpB_internal, ALUOpB, is_adder_and_subtracting, AddSub, ALUCmd, Cin_internal) begin        
+    process (all) begin        
         for i in ALUOpB'range loop
-            OpB_internal(i) <= ALUOpB(i) xor is_adder_and_subtracting;
+            ALUOpB_flipped_for_adder(i) <= ALUOpB_internal(i) xor is_adder_and_subtracting;
         end loop;
     end process;
     Cin_add_sub <= cin_adder xor is_adder_and_subtracting;
@@ -105,8 +105,8 @@ begin
             wordsize => 32
         )
         port map (
-            ALUOpA   => ALUOpA,
-            ALUOpB   => OpB_internal,
+            ALUOpA   => ALUOpA_internal,
+            ALUOpB   => ALUOpB_flipped_for_adder,
             Cin      => Cin_internal,
             FCmd     => FCmd,
             CinCmd   => CinCmd_CIN,

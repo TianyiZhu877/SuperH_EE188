@@ -43,6 +43,7 @@ use ieee.std_logic_1164.all;
 -- use ieee.std_logic_arith.all;
 use ieee.numeric_std.all;
 use work.RamAccessMode.all;
+use work.ALUConstants.all;
 
 --library opcodes;
 --use opcodes.opcodes.all;
@@ -69,7 +70,7 @@ entity  SH2_CPU  is
         -- debug input signals
         PC_reset_addr_debug      :  in  std_logic_vector(31 downto 0);    
         -- debug probe signals
-        IR_debug :  out  std_logic_vector(15 downto 0);
+        opcode_debug :  out  std_logic_vector(15 downto 0);
         PC_debug: out  std_logic_vector(31 downto 0);
         ram_data_address_debug: out  std_logic_vector(31 downto 0);
         PC_LD_sel_debug: out integer range 0 to 3; 
@@ -115,7 +116,7 @@ architecture  structural  of  SH2_CPU  is
     component  dataAddrUnit
         port (
         -- inputs for base addr
-            SrcSel      : in    integer  range 3 downto 0;       -- singal for selection 
+            SrcSel      : in    integer  range 4 downto 0;       -- singal for selection 
             PC          : in     std_logic_vector(31 downto 0);  -- selected when 0
             Rn          : in     std_logic_vector(31 downto 0);   -- selected when 1
             GBR         : in     std_logic_vector(31 downto 0);   -- selected when 2
@@ -200,9 +201,9 @@ architecture  structural  of  SH2_CPU  is
     signal OffsetSel_P   :    integer  range 2 downto 0;       -- singal for selection 
     signal DispCutoff_P  :    integer  range 1 downto 0;       
     signal PrePostSel_P :      std_logic;
-    signal SrcSel_D      :    integer  range 1 downto 0;       -- singal for selection 
+    signal SrcSel_D      :    integer  range 4 downto 0;       -- singal for selection 
     signal IncDecVal_D   :     std_logic_vector(3 downto 0);
-    signal OffsetSel_D   :    integer  range 2 downto 0;       -- singal for selection 
+    signal OffsetSel_D   :    integer  range 4 downto 0;       -- singal for selection 
     signal DispCutoff_D  :    integer  range 1 downto 0;       
     signal PrePostSel_D :      std_logic;
     -- ALU
@@ -300,7 +301,7 @@ architecture  structural  of  SH2_CPU  is
 
 begin
 -- connecting debug lines
-    IR_debug <= IR;
+    opcode_debug <= opcode;
     PC_debug <= PC;
     ram_data_address_debug <= ram_data_address;
     PC_LD_sel_debug <= PC_LD_sel; 
@@ -530,9 +531,7 @@ begin
                         ram_EN <= '1';
                         reg_read_b_mux <= 1;
                         ram_access_mode <= WORD_ACCESS;
-                    end if;
-
-                        
+                    end if;  
                 
                 elsif (opcode(3 downto 0) = "0110") then 
                     if (state = "10") then
@@ -547,7 +546,6 @@ begin
                         ram_access_mode <= LONG_ACCESS;
                     end if;
 
-
                 elsif (opcode(3 downto 0) = "1100") then 
                     if (state = "10") then
                         reg_read_a_mux <= '1';
@@ -561,7 +559,7 @@ begin
                     elsif (state = "11") then
                         reg_write_addr_mux <= 0;
                         reg_write_en <= '1';
-                        reg_write_in_mux <= 0;
+                        reg_write_in_mux <= 2;
                     end if;
                     
                 elsif (opcode(3 downto 0) = "1101") then 
@@ -577,10 +575,8 @@ begin
                     elsif (state = "11") then
                         reg_write_addr_mux <= 0;
                         reg_write_en <= '1';
-                        reg_write_in_mux <= 0;
+                        reg_write_in_mux <= 2;
                     end if;
-
-
                         
                 elsif (opcode(3 downto 0) = "1110") then 
                     if (state = "10") then
@@ -595,9 +591,8 @@ begin
                     elsif (state = "11") then
                         reg_write_addr_mux <= 0;
                         reg_write_en <= '1';
-                        reg_write_in_mux <= 0;
+                        reg_write_in_mux <= 2;
                     end if;
-
                     
                 elsif (opcode(3 downto 0) = "1010") then 
                     if (state = "11") then
@@ -639,15 +634,147 @@ begin
                             PC_LD_sel <= 0;
                         end if;
                     end if;
-
-
-                        
-                    
-
-
-
                 end if;
             
+            when "0101" =>
+            -- mov.L @(disp:4, Rm), Rn
+                if (state = "10") then
+                    SrcSel_D <= 0;
+                    DispCutoff_D <= 0;
+                    OffsetSel_D <= 4;
+                    PrepostSel_D <= '0';
+
+                    ram_access_mode <= LONG_ACCESS;
+                    ram_RW <= '0';
+                    ram_PD <= '1';
+                    ram_EN <= '1';
+                elsif (state = "11") then
+                    reg_write_en <= '1';
+                    reg_write_in_mux <= 2;
+                    reg_write_addr_mux <= 0;
+                end if;
+
+
+            when "0110" =>
+                if (opcode(3 downto 2) = "00") then 
+                -- move @Rm/Rm, Rn
+                    case opcode(1 downto 0) is
+                        when "00" =>
+                            if (state = "10") then
+                                ram_access_mode <= BYTE_ACCESS;
+                                reg_read_a_mux <= '1';
+                                SrcSel_D <= 0;
+                                IncDecVal_D <= "0000";
+                                OffsetSel_D <= 1;
+                                PrepostSel_D <= '0';
+                                ram_RW <= '0';
+                                ram_PD <= '1';
+                                ram_EN <= '1';
+                            elsif (state = "11") then
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 0;
+                                reg_write_addr_mux <= 0;
+                            end if;
+  
+                        when "01" =>
+                            if (state = "10") then
+                                ram_access_mode <= WORD_ACCESS;
+                                reg_read_a_mux <= '1';
+                                SrcSel_D <= 0;
+                                IncDecVal_D <= "0000";
+                                OffsetSel_D <= 1;
+                                PrepostSel_D <= '0';
+                                ram_RW <= '0';
+                                ram_PD <= '1';
+                                ram_EN <= '1';
+                            elsif (state = "11") then
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 2;
+                                reg_write_addr_mux <= 0;
+                            end if;
+                            
+                        when "10" =>
+                            if (state = "10") then
+                                reg_read_a_mux <= '1';
+                                SrcSel_D <= 0;
+                                IncDecVal_D <= "0000";
+                                OffsetSel_D <= 1;
+                                PrepostSel_D <= '0';
+                                ram_access_mode <= LONG_ACCESS;
+                                ram_RW <= '0';
+                                ram_PD <= '1';
+                                ram_EN <= '1';
+                            elsif (state = "11") then
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 2;
+                                reg_write_addr_mux <= 0;
+                            end if;
+                
+                        when "11" =>
+                            if (state = "10") then
+                                reg_read_b_mux <= 1;
+                            elsif (state = "11") then
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 3;
+                                reg_write_addr_mux <= 0;
+                                reg_write_in_sel_regs <= 0;
+                            end if;
+                        
+                        when others =>
+                            null;
+                    end case;
+                end if;
+
+
+            when "1001" =>
+            -- mov.W @(disp:8, PC), Rn
+                if (state = "10") then
+                    SrcSel_D <= 1;
+                    DispCutoff_D <= 1;
+                    OffsetSel_D <= 3;
+                    PrepostSel_D <= '0';
+
+                    ram_access_mode <= WORD_ACCESS;
+                    ram_RW <= '0';
+                    ram_PD <= '1';
+                    ram_EN <= '1';
+                elsif (state = "11") then
+                    reg_write_en <= '1';
+                    reg_write_in_mux <= 2;
+                    reg_write_addr_mux <= 0;
+                end if;
+
+
+            when "1101" =>
+            -- mov.L @(disp:8, PC), Rn
+                if (state = "10") then
+                    SrcSel_D <= 2;
+                    DispCutoff_D <= 1;
+                    OffsetSel_D <= 4;
+                    PrepostSel_D <= '0';
+
+                    ram_access_mode <= LONG_ACCESS;
+                    ram_RW <= '0';
+                    ram_PD <= '1';
+                    ram_EN <= '1';
+                elsif (state = "11") then
+                    reg_write_en <= '1';
+                    reg_write_in_mux <= 2;
+                    reg_write_addr_mux <= 0;
+                end if;
+
+            when "1110" =>
+                if (state = "10") then
+                    alu_op_b_sel <= 1;
+                    alu_op_a_sel <= '1';
+                    FCmd <= "1010";
+                    ALUCmd <= ALUCmd_FBLOCK;
+                elsif (state = "11") then
+                    reg_write_en <= '1';
+                    reg_write_in_mux <= 1;
+                    reg_write_addr_mux <= 0;
+                end if;
+        
             
             when others =>
                 null;
@@ -688,7 +815,8 @@ begin
         port map (
         -- inputs for base addr
             SrcSel      => SrcSel_D,       -- singal for selection 
-            PC          => PC,  -- to-do: might be changed later
+-- to-do: switch this back to PC_EX for pipeline !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            PC          => PC_EX,  -- to-do: might be changed later
             Rn          => reg_out_a,   -- selected when 1
             GBR         => GBR,   -- selected when 2
         -- inputs for offset
@@ -710,7 +838,7 @@ begin
             port map(
             -- inputs for base addr
                 SrcSel => SrcSel_P,       -- singal for selection 
-                PC  => PC_EX,  -- selected when 0
+                PC  => PC_pre,  -- selected when 0
             -- inputs for offset
                 OffsetSel => OffsetSel_P,       -- singal for selection 
                 Rm  => reg_out_b,  -- selected when 0

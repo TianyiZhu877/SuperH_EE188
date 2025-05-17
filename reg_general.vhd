@@ -107,7 +107,25 @@ architecture  behavioral  of  RegArray  is
     alias  RegDInLow  : std_logic_vector(wordsize - 1 downto 0) IS
                         RegDIn(wordsize - 1 downto 0);
 
+    
+    signal R0_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R1_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R2_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R3_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R4_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R5_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R6_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R7_debug: std_logic_vector(wordsize - 1 downto 0);
+
 begin
+    R0_debug <= Registers(0);
+    R1_debug <= Registers(1);
+    R2_debug <= Registers(2);
+    R3_debug <= Registers(3);
+    R4_debug <= Registers(4);
+    R5_debug <= Registers(5);
+    R6_debug <= Registers(6);
+    R7_debug <= Registers(7);
 
     -- setup the outputs - choose based on select signals
     RegA   <=  Registers(RegASel);
