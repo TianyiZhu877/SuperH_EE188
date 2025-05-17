@@ -188,7 +188,8 @@ architecture  structural  of  SH2_CPU  is
             read_sel_a : in  integer range 15 downto 0;         -- select the first register to output
             read_sel_b : in  integer range 15 downto 0;         -- select the second register to output
             data_out_a : out std_logic_vector(31 downto 0);     -- the data output for the first register
-            data_out_b : out std_logic_vector(31 downto 0)      -- the data output for the second register
+            data_out_b : out std_logic_vector(31 downto 0);     -- the data output for the second register
+            data_out_0 : out std_logic_vector(31 downto 0)      -- the data output for the second register
         );
     end component;
 
@@ -217,17 +218,19 @@ architecture  structural  of  SH2_CPU  is
     signal reg_read_a_mux : std_logic;         -- select the first register to output
     signal reg_read_b_mux : integer range 0 to 2;         -- select the first register to output
     signal reg_write_addr_mux : integer range 0 to 2;         -- select the register to write
-    signal reg_write_in_mux : integer range 0 to 2;         -- select the register to write
+    signal reg_write_in_mux : integer range 0 to 3;         -- select the register to write
+    signal reg_write_in_sel_regs : integer range 0 to 7;         -- select when reg_write_in_mux = 3
     signal reg_write_en: std_logic;
     -- control register
     -- signal LD_PC: std_logic;
     signal LD_PR: std_logic;
     signal LD_IR: std_logic;
-    signal LD_T: std_logic;
-    signal LD_S: std_logic;
-    -- signal LD_GBR: std_logic;
+    signal T_LD_sel: integer range 0 to 4;
+    signal LD_S: std_logic;                             -- unused
+    signal LD_SR_I: std_logic;                          -- unused
+    signal LD_GBR: std_logic;
     signal PC_LD_sel : integer range 0 to 3;         -- select the register to write
-    signal GBR_LD_sel : integer range 0 to 2;         -- select the register to write
+    -- signal GBR_LD_sel : integer range 0 to 2;         -- select the register to write
     -- RAM routing
     signal ram_EN          : std_logic;      -- 1 for enable, 0 for disable
     signal ram_PD          : std_logic;      -- 0 for program, 1 for data memory 
@@ -249,10 +252,6 @@ architecture  structural  of  SH2_CPU  is
     signal SR: std_logic_vector(31 downto 0);
 
 -- interconnect signals
-    signal reg_sel_a : integer range 15 downto 0;         -- select the first register to output
-    signal reg_sel_b : integer range 15 downto 0;         -- select the second register to output
-    signal reg_out_a : std_logic_vector(31 downto 0);     -- the data output for the first register
-    signal reg_out_b : std_logic_vector(31 downto 0);      -- the data output for the second register
     signal program_address      : std_logic_vector(31 downto 0);   -- program address bus
     signal ram_data_address         : std_logic_vector(31 downto 0);   -- data address bus
     signal program_addr_src_out : std_logic_vector(31 downto 0);
@@ -261,7 +260,13 @@ architecture  structural  of  SH2_CPU  is
     -- signal read_data  : std_logic_vector(31 downto 0);
     signal ram_data_read : std_logic_vector(31 downto 0);
     -- register signals
+    signal reg_sel_a : integer range 15 downto 0;         -- select the first register to output
+    signal reg_sel_b : integer range 15 downto 0;         -- select the second register to output
+    signal reg_out_a : std_logic_vector(31 downto 0);     -- the data output for the first register
+    signal reg_out_b : std_logic_vector(31 downto 0);      -- the data output for the second register
+    signal reg_out_R0 : std_logic_vector(31 downto 0);      -- the data output for the second register
     signal reg_write_in: std_logic_vector(31 downto 0);
+    signal reg_in_reg_sel_result: std_logic_vector(31 downto 0);
     signal reg_write_addr: integer range 15 downto 0;
     signal reg_read_b: integer range 15 downto 0;
     signal reg_read_a: integer range 15 downto 0;
@@ -272,18 +277,19 @@ architecture  structural  of  SH2_CPU  is
     signal ALU_Z: std_logic;
     signal SR_T_in: std_logic;
     signal SR_S_in: std_logic;
+    signal ALU_cout         : std_logic;
+    signal ALU_overflow         : std_logic;
 
 
--- delayed output for alu and data addressing unit (CL), 1 are registers
-    signal ALU_result_0         : std_logic_vector(31 downto 0);
-    signal ALU_result_1         : std_logic_vector(31 downto 0);
-    signal ALU_cout_0         : std_logic;
-    signal ALU_cout_1         : std_logic;
-    signal ALU_overflow_0         : std_logic;
-    signal ALU_overflow_1         : std_logic;
-    signal data_addr_writeback_0  : std_logic_vector(31 downto 0);
-    signal data_addr_writeback_1  : std_logic_vector(31 downto 0);
-    signal reg_b_buffer:        std_logic_vector(31 downto 0);
+-- register saved for pipelining, first state are combinational
+-- execute stage generated signals
+    signal ALU_result_EX         : std_logic_vector(31 downto 0);
+    signal ALU_result_WB         : std_logic_vector(31 downto 0);
+    signal data_addr_writeback_EX  : std_logic_vector(31 downto 0);
+    signal data_addr_writeback_WB  : std_logic_vector(31 downto 0);
+-- decode stage generated signals
+    signal reg_out_a_WB:        std_logic_vector(31 downto 0);
+    signal reg_out_b_WB:        std_logic_vector(31 downto 0);
 
 -- exceptions from components
     signal ram_exception : std_logic;    
@@ -348,38 +354,20 @@ begin
                     IR <= (others => 'X');
                 end if;
 
-                if (GBR_LD_sel = 0) then
-                    GBR <= GBR;
-                elsif (GBR_LD_sel = 1) then
-                    GBR <= reg_b_buffer;
-                elsif (GBR_LD_sel = 2) then
-                    GBR <= ram_data_read;
+                if (LD_GBR) then
+                    GBR <= reg_out_b_WB;
                 else
-                    GBR <= (others => 'X');
+                    GBR <= GBR;
                 end if;
 
-
-    -- SR       to-do: implement these!!!
-                if (LD_T) then
-                    SR_T <= '0';   
-                end if;
-
-                if (LD_S) then
-                    SR_S <= '0';            
-                end if;
 
     -- ALU results
-                if (ALU_opA_bypass = '1') then
-                    ALU_result_1 <= reg_out_a;
-                elsif (ALU_opA_bypass = '0') then
-                    ALU_result_1 <= ALU_result_0;
-                else
-                    ALU_result_1 <= (others => 'X');
-                end if;
-                ALU_cout_1 <= ALU_cout_0;
-                ALU_overflow_1 <= ALU_overflow_0;
-                reg_b_buffer <= reg_out_b;
-                data_addr_writeback_1 <= data_addr_writeback_0;
+                reg_out_a_WB <= reg_out_a;
+                reg_out_b_WB <= reg_out_b;
+                ALU_result_WB <= ALU_result_EX;
+                -- ALU_cout_1 <= ALU_cout_0;
+                -- ALU_overflow_1 <= ALU_overflow_0;
+                data_addr_writeback_WB <= data_addr_writeback_EX;
 
 
     -- pipelining register update
@@ -394,8 +382,27 @@ begin
                 SR_I <= "XXXX";
             end if;
                  
+                -- if (LD_S) then
+                --     SR_S <= '0';            
+                -- end if;
+                
+    -- SR       to-do: add branch for sel=1!!!
+            if (T_LD_sel = 0) then
+                SR_T <= '0';
+            elsif  (T_LD_sel = 2) then
+                SR_T <= reg_out_b(0);
+            elsif  (T_LD_sel = 3) then
+                SR_T <= '0';
+            elsif  (T_LD_sel = 4) then
+                SR_T <= '1';
+            else
+                SR_T <= 'X'; 
+            end if;
+
         end if;
     end process;
+    
+    SR <= (31 downto 8 => '0') & SR_I & "00" & SR_S & SR_T;
 
 
     -- only for unpipelined
@@ -429,15 +436,16 @@ begin
         reg_read_b_mux <= 0;         -- select the first register to output
         reg_write_addr_mux <= 0;         -- select the register to write
         reg_write_in_mux <= 0;         -- select the register to write
+        reg_write_in_sel_regs <= 0;
         reg_write_en <= '0';
         -- control register
         LD_PR <= '0';
         LD_IR <= '0';
-        LD_T <= '0';
+        T_LD_SEL <= 0;
         LD_S <= '0';
         PC_LD_sel <= 0;         -- select the register to write, to-do: for unpipelined, increment in decode stage, 
         -- but for pipelined, increment almost all the time, thus needs reset address to one previous first command!
-        GBR_LD_sel <= 0;         -- select the register to write
+        LD_GBR <= '0';         -- select the register to write
         LD_PR <= '0';         -- select the register to write
         ram_EN <= '0';      -- 1 for enable, 0 for disable
         ram_PD <= '0';      -- 0 for program, 1 for data memory 
@@ -459,15 +467,79 @@ begin
 
         case opcode(15 downto 12) is
             when "0000" =>
-                if (opcode(3 downto 0) = "1011") then 
+                if (opcode(3 downto 0) = "0010") then 
+                    if (state = "11") then
+                        if (opcode(7 downto 4) = "0000") then
+                        -- STC SR, Rn
+                            reg_write_in_sel_regs <= 1;
+                            reg_write_en <= '1';
+                        
+                        elsif (opcode(7 downto 4) = "0001") then
+                            -- STC GBR, Rn
+                            reg_write_in_sel_regs <= 2;
+                            reg_write_en <= '1';
+
+                        elsif (opcode(7 downto 4) = "0010") then
+                        -- STC VBR, Rn
+                            reg_write_in_sel_regs <= 3;
+                            reg_write_en <= '1';
+                        end if;
+
+
+                        reg_write_in_mux <= 3;
+                        reg_write_addr_mux <= 0;
+                    end if;
+
+                    
+                elsif (opcode(3 downto 0) = "1010") then 
+                    if (state = "11") then
+                        if (opcode(7 downto 4) = "0000") then
+                        -- STC MACH, Rn
+                            reg_write_in_sel_regs <= 4;
+                            reg_write_en <= '1';
+                        
+                        elsif (opcode(7 downto 4) = "0001") then
+                        -- STC MACHL, Rn
+                            reg_write_in_sel_regs <= 5;
+                            reg_write_en <= '1';
+
+                        elsif (opcode(7 downto 4) = "0010") then
+                        -- STC PR, Rn
+                            reg_write_in_sel_regs <= 6;
+                            reg_write_en <= '1';
+                        end if;
+
+                        reg_write_in_mux <= 3;
+                        reg_write_addr_mux <= 0;
+                    end if;
+                    
+                elsif (opcode(3 downto 0) = "1010") then 
+                    if (state = "11") then
+                        if (opcode(7 downto 4) = "0010") then
+                        -- MOVT Rn
+                            reg_write_in_sel_regs <= 7;
+                            reg_write_en <= '1';
+                            reg_write_in_mux <= 3;
+                            reg_write_addr_mux <= 0;
+                        end if;
+                    end if;
+
+                elsif (opcode(3 downto 0) = "1011") then 
                     if (opcode(7 downto 4) = "0001") then
                         -- SLEEP   0000 0000 0001 1011
                         if (state = "10") then
                             PC_LD_sel <= 0;
                         end if;
-
                     end if;
+
+
+                        
+                    
+
+
+
                 end if;
+            
             
             when others =>
                 null;
@@ -482,15 +554,24 @@ begin
                 10;     
     reg_read_b <= to_integer(unsigned(opcode(11 downto 8))) when  reg_read_b_mux = 0  else
                 to_integer(unsigned(opcode(7 downto 4))) when   reg_read_b_mux = 1  else
-                 0 when   reg_read_b_mux = 2  else
+                0 when   reg_read_b_mux = 2  else
                 11;  
-    reg_write_addr <= to_integer(unsigned(opcode(11 downto 8))) when  reg_read_b_mux = 0  else
-            to_integer(unsigned(opcode(7 downto 4))) when   reg_read_b_mux = 1  else
-             0 when   reg_read_b_mux = 2  else
+    reg_write_addr <= to_integer(unsigned(opcode(11 downto 8))) when  reg_write_addr_mux = 0  else
+            to_integer(unsigned(opcode(7 downto 4))) when   reg_write_addr_mux = 1  else
+             0 when   reg_write_addr_mux = 2  else
             12;              -- to-do: change to opcode_WB for pipelined!!!
-    reg_write_in <= data_addr_writeback_1 when reg_write_in_mux = 0 else
-                ALU_result_1 when reg_write_in_mux = 1 else
+
+    reg_in_reg_sel_result <= reg_out_b_WB when reg_write_in_sel_regs = 0 else
+                            SR when reg_write_in_sel_regs = 1 else
+                            GBR when reg_write_in_sel_regs = 2 else
+                            PR when reg_write_in_sel_regs = 6 else
+                            (31 downto 1 => '0') & SR_T when reg_write_in_sel_regs = 7 else
+                            (others => 'X');
+
+    reg_write_in <= data_addr_writeback_WB when reg_write_in_mux = 0 else
+                ALU_result_WB when reg_write_in_mux = 1 else
                 ram_data_read when reg_write_in_mux = 2 else
+                reg_in_reg_sel_result when reg_write_in_mux = 3 else
                 (others => 'X');
 
 -- connecting components
@@ -504,7 +585,7 @@ begin
             GBR         => GBR,   -- selected when 2
         -- inputs for offset
             OffsetSel   => OffsetSel_D,       -- singal for selection 
-            R0          => reg_out_b,  -- selected when 0
+            R0          => reg_out_R0,  -- selected when 0
             IncDecVal   => IncDecVal_D,
             -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
             Disp     => opcode(7 downto 0),  
@@ -514,7 +595,7 @@ begin
             PrePostSel => PrePostSel_D,
         -- outputs, directly connects to the wrapped general mau output
             Address    => ram_data_address,
-            AddrSrcOut => data_addr_writeback_0
+            AddrSrcOut => data_addr_writeback_EX
         );
 
         program_addr_unit:  programAddrUnit
@@ -546,29 +627,30 @@ begin
                 read_sel_a => reg_read_a,         -- select the first register to output
                 read_sel_b => reg_read_b,         -- select the second register to output
                 data_out_a => reg_out_a,     -- the data output for the first register
-                data_out_b => reg_out_b      -- the data output for the second register
+                data_out_b => reg_out_b,      -- the data output for the second register
+                data_out_0 => reg_out_R0      -- the data output for the second register
             );
     
-            alu_0: ALU
-                port map(
-                    ALUOpA  => reg_out_a,   -- first operand
-                    ALUOpB  => reg_out_b,   -- second operand
-                    immd   => opcode(7 downto 0),   -- immediate value (IR 7-0)
-                    T     => SR_T,                       -- T flag 
-                    op_a_sel  => alu_op_a_sel,
-                    op_b_sel => alu_op_b_sel,
-                    adder_cin_sel => adder_cin_sel,
-                    AddSub   => AddSub,                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
-                    ALUCmd   => ALUCmd,    -- ALU result select
-                    FCmd    => FCmd,    -- F-Block operation
-                    SCmd    => SCmd,    -- shift operation
-                    
-                    Result  => ALU_result_0,   -- ALU result
-                    C   => ALU_C,                       -- carry out
-                    V => ALU_V,                        -- overflow
-                    S => ALU_S,                    -- sign
-                    Z => ALU_Z                        -- zero
-                );
+        alu_0: ALU
+            port map(
+                ALUOpA  => reg_out_a,   -- first operand
+                ALUOpB  => reg_out_b,   -- second operand
+                immd   => opcode(7 downto 0),   -- immediate value (IR 7-0)
+                T     => SR_T,                       -- T flag 
+                op_a_sel  => alu_op_a_sel,
+                op_b_sel => alu_op_b_sel,
+                adder_cin_sel => adder_cin_sel,
+                AddSub   => AddSub,                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
+                ALUCmd   => ALUCmd,    -- ALU result select
+                FCmd    => FCmd,    -- F-Block operation
+                SCmd    => SCmd,    -- shift operation
+                
+                Result  => ALU_result_EX,   -- ALU result
+                C   => ALU_C,                       -- carry out
+                V => ALU_V,                        -- overflow
+                S => ALU_S,                    -- sign
+                Z => ALU_Z                        -- zero
+            );
 
         ram_rounting_0: RAMRouting
             port map (

@@ -55,6 +55,8 @@ use ieee.std_logic_1164.all;
 -- use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 -- use IEEE.std_logic_textio.all;  -- Needed to print std_logic_vector
+use std.textio.all;
+
 
 
 entity  MEMORY32x32  is
@@ -90,18 +92,18 @@ architecture  behavioral  of  MEMORY32x32  is
     type  RAMtype  is array (0 to MEMSIZE - 1) of std_logic_vector(31 downto 0);
 
     -- now define the RAMs (initialized to X)
-    signal  RAMbits0  :  RAMtype  := (
+    signal  RAMbits0  :  RAMtype := (
         -- 0 => "00000000000010000100000000000111"
-        0 => (15 downto 0 => "0000000000001000", 31 downto 16 => "0100000000000111"),
-        1 => (15 downto  0 => "0100000000000100", 31 downto 16 => "0000000000001001"),
-        2 => (15 downto  0 => "0000000000000011", 31 downto 16 => "0100000000000010"),
-        3 => (15 downto  0 => "0000000000000000", 31 downto 16 => "0000000001000001"),
-        4 => (15 downto  0 => "0000000000000000", 31 downto 16 => "0100000001000001"),
-        5 => (15 downto  0 => "0000000001000010", 31 downto 16 => "0000000001000011"),
-        6 => ( 31 downto 16=> "0000000001000100", 15 downto  0 => "0000000000011011"),    -- SLEEP
-        7 => (15 downto  0 => "0000000000011100", 31 downto 16 => "0000000000011101"),
-        8 => (15 downto  0 => "0000000001011110", 31 downto 16 => "0000000000011111"),
-        others => (others => 'X')
+        -- 0 => (15 downto 0 => "0000000000001000", 31 downto 16 => "0100000000000111"),
+        -- 1 => (15 downto  0 => "0100000000000100", 31 downto 16 => "0000000000001001"),
+        -- 2 => (15 downto  0 => "0000000000000011", 31 downto 16 => "0100000000000010"),
+        -- 3 => (15 downto  0 => "0000000000000000", 31 downto 16 => "0000000001000001"),
+        -- 4 => (15 downto  0 => "0000000000000000", 31 downto 16 => "0100000001000001"),
+        -- 5 => (15 downto  0 => "0000000001000010", 31 downto 16 => "0000000001000011"),
+        -- 6 => ( 31 downto 16=> "0000000001000100", 15 downto  0 => "0000000000011011"),    -- SLEEP
+        -- 7 => (15 downto  0 => "0000000000011100", 31 downto 16 => "0000000000011101"),
+        -- 8 => (15 downto  0 => "0000000001011110", 31 downto 16 => "0000000000011111"),
+        others => (others => 'Z')
     );
     -- signal  RAMbits0  :  RAMtype  := (others => (others => 'X'));
     signal  RAMbits1  :  RAMtype  := (others => (others => 'X'));
@@ -112,38 +114,33 @@ architecture  behavioral  of  MEMORY32x32  is
     signal  RE  :  std_logic;
     signal  WE  :  std_logic;
 
+
     -- data read from memory
     signal  MemData  :  std_logic_vector(31 downto 0);
 
 
+    procedure load_ram(
+        variable ram : inout RAMtype;
+        constant filename : in string
+    ) is
+        file f       : text open read_mode is filename;
+        variable line_buf : line;
+        variable hex_str  : string(1 to 8);
+        variable word_val : std_logic_vector(31 downto 0);
+    begin
+        for i in ram'range loop
+            exit when endfile(f);
+            readline(f, line_buf);
+            -- read(line_buf, hex_str);
+            -- word_val := std_logic_vector(to_unsigned(to_integer(image => hex_str), 32));
+            hread(line_buf, word_val);
+            ram(i) := word_val;
+            -- report "Value read: " & to_hstring(ram(i));
+            -- report "word_val: " & to_hstring(word_val);
+        end loop;
+    end procedure;
+
 begin   
---     process begin
---         -- RAMbits0(0) <= "00000000000010000100000000000111";
---         RAMbits0(0) <= x"01234567";
---         wait for 1 ns;
---         -- RAMbits0(0)(15 downto  0) <= "0000000000001000";
---         -- RAMbits0(0)(31 downto 16) <= "0100000000000111";
---         RAMbits0(1)(15 downto  0) <= "0100000000000100";
---         RAMbits0(1)(31 downto 16) <= "0000000000001001";
---         RAMbits0(2)(15 downto  0) <= "0000000000000011";
---         RAMbits0(2)(31 downto 16) <= "0100000000000010";
---         RAMbits0(3)(15 downto  0) <= "0000000000000001";
---         RAMbits0(3)(31 downto 16) <= "0000000000000000";
---         RAMbits0(4)(15 downto  0) <= "0000000001000001";
---         RAMbits0(4)(31 downto 16) <= "0000000000000000";
---         RAMbits0(5)(15 downto  0) <= "0100000001000001";
---         RAMbits0(5)(31 downto 16) <= "0000000001000010";
---         RAMbits0(6)(15 downto  0) <= "0000000001000011";
---         RAMbits0(6)(31 downto 16) <= "0000000001000100";
---         RAMbits0(7)(15 downto  0) <= "0000000000011011";    -- SLEEP
---         RAMbits0(7)(31 downto 16) <= "0000000000011100";
---         RAMbits0(8)(15 downto  0) <= "0000000000011101";
-
---         wait for 1 ns;
---         report "Value of 0: " & to_hstring(RAMbits0(0));
---         wait;
---     end process;
-
 
     -- compute the general read and write signals (active low signals)
     RE  <=  RE0  and  RE1  and  RE2  and  RE3;
@@ -158,116 +155,150 @@ begin
         -- wait on  RE, RE0, RE1, RE2, RE3, WE, WE0, WE1, WE2, WE3, MemAB;
         if  rising_edge(clk)  then
 
-        -- first check if reading
-        if  (RE = '0')  then
-            -- reading, put the data out (check the address)
-            if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
-                 ((to_integer(unsigned(MemAB)) - START_ADDR0) < 4 * MEMSIZE))  then
-                MemDB <= RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4);
-            elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR1) and
-                ((to_integer(unsigned(MemAB)) - START_ADDR1) < 4 * MEMSIZE))  then
-                MemDB <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2)) - START_ADDR1 / 4));
-            elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR2) and
-                ((to_integer(unsigned(MemAB)) - START_ADDR2) < 4 * MEMSIZE))  then
-                MemDB <= RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4);
-            elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR3) and
-                ((to_integer(unsigned(MemAB)) - START_ADDR3) < 4 * MEMSIZE))  then
-                MemDB <= RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4);
+            -- first check if reading
+            if  (RE = '0')  then
+                -- reading, put the data out (check the address)
+                if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
+                    ((to_integer(unsigned(MemAB)) - START_ADDR0) < 4 * MEMSIZE))  then
+                    MemDB <= RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4);
+                elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR1) and
+                    ((to_integer(unsigned(MemAB)) - START_ADDR1) < 4 * MEMSIZE))  then
+                    MemDB <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2)) - START_ADDR1 / 4));
+                elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR2) and
+                    ((to_integer(unsigned(MemAB)) - START_ADDR2) < 4 * MEMSIZE))  then
+                    MemDB <= RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4);
+                elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR3) and
+                    ((to_integer(unsigned(MemAB)) - START_ADDR3) < 4 * MEMSIZE))  then
+                    MemDB <= RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4);
+                else
+                    -- outside of any allowable address range - set output to X
+                    MemDB <= (others => 'X');
+                end if;
+
+                -- only set the bytes that are being read
+                if  RE0 /= '0'  then
+                    MemDB(7 downto 0) <= (others => 'Z');
+                end if;
+                if  RE1 /= '0'  then
+                    MemDB(15 downto 8) <= (others => 'Z');
+                end if;
+                if  RE2 /= '0'  then
+                    MemDB(23 downto 16) <= (others => 'Z');
+                end if;
+                if  RE3 /= '0'  then
+                    MemDB(31 downto 24) <= (others => 'Z');
+                end if;
+
             else
-                -- outside of any allowable address range - set output to X
-                MemDB <= (others => 'X');
+
+                -- not reading, send data bus to hi-Z
+                MemDB <= (others => 'Z');
             end if;
 
-            -- only set the bytes that are being read
-            if  RE0 /= '0'  then
-                MemDB(7 downto 0) <= (others => 'Z');
-            end if;
-            if  RE1 /= '0'  then
-                MemDB(15 downto 8) <= (others => 'Z');
-            end if;
-            if  RE2 /= '0'  then
-                MemDB(23 downto 16) <= (others => 'Z');
-            end if;
-            if  RE3 /= '0'  then
-                MemDB(31 downto 24) <= (others => 'Z');
-            end if;
+            -- now check if writing
+            -- if  (WE'event and (WE = '1'))  then
+            if  (WE = '0')  then
+                -- rising edge of write - write the data (check which address range)
+                -- first get current value of the byte
+                if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
+                    (to_integer(unsigned(MemAB)) - START_ADDR0 < (4 * MEMSIZE)))  then
+                    MemData <= RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4);
+                elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR1) and
+                        (to_integer(unsigned(MemAB)) - START_ADDR1) < (4 * MEMSIZE))  then
+                    MemData <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4);
+                elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR2) and
+                (to_integer(unsigned(MemAB)) - START_ADDR2) < (4 * MEMSIZE)) then
+                    MemData <= RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4);
+                elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR3) and
+                        (to_integer(unsigned(MemAB)) - START_ADDR3) < (4 * MEMSIZE))  then
+                    MemData <= RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4);
+                else
+                    MemData <= (others => 'X');
+                    -- null;
+                end if;
 
-        else
+                -- now update the data based on the write enable signals
+                -- set any byte being written to its new value
+                if  WE0 = '0'  then
+                    MemData(7 downto 0) <= MemDB(7 downto 0);
+                end if;
+                if  WE1 = '0'  then
+                    MemData(15 downto 8) <= MemDB(15 downto 8);
+                end if;
+                if  WE2 = '0'  then
+                    MemData(23 downto 16) <= MemDB(23 downto 16);
+                end if;
+                if  WE3 = '0'  then
+                    MemData(31 downto 24) <= MemDB(31 downto 24);
+                end if;
 
-            -- not reading, send data bus to hi-Z
-            MemDB <= (others => 'Z');
-        end if;
-
-        -- now check if writing
-        if  (WE'event and (WE = '1'))  then
-            -- rising edge of write - write the data (check which address range)
-            -- first get current value of the byte
-            if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
-                 (to_integer(unsigned(MemAB)) - START_ADDR0 < (4 * MEMSIZE)))  then
-                MemData <= RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4);
-            elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR1) and
-                    (to_integer(unsigned(MemAB)) - START_ADDR1) < (4 * MEMSIZE))  then
-                MemData <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4);
-            elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR2) and
-            (to_integer(unsigned(MemAB)) - START_ADDR2) < (4 * MEMSIZE)) then
-                MemData <= RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4);
-            elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR3) and
+                -- finally write the updated value to memory
+                if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
+                    (to_integer(unsigned(MemAB)) - START_ADDR0) < (4 * MEMSIZE))  then
+                    -- "writing to RAMbits0 (" & 
+                    -- & ") = " & MemData;
+                    RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4) <= MemData;
+                    -- RAMbits0(0) <= (others =>'1');
+                    -- report "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!writing to RAMbits0 (";
+                    -- report to_hstring(std_logic_vector(to_unsigned(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4, 32)));
+                    null;
+                elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR1) and
+                        (to_integer(unsigned(MemAB)) - START_ADDR1) < (4 * MEMSIZE))  then
+                    RAMbits1(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4) <= MemData;
+                elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR2) and
+                    (to_integer(unsigned(MemAB)) - START_ADDR2) < (4 * MEMSIZE))  then
+                    RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4) <= MemData;
+                elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR3) and
                     (to_integer(unsigned(MemAB)) - START_ADDR3) < (4 * MEMSIZE))  then
-                MemData <= RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4);
-            else
-                MemData <= (others => 'X');
+                    RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4) <= MemData;
+                else
+                    -- outside of any allowable address range - generate an error
+                    assert (false)
+                        report  "Attempt to write to a non-existant address"
+                        severity  WARNING;
+                end if;
 
-            -- now update the data based on the write enable signals
-            -- set any byte being written to its new value
-            if  WE0 = '0'  then
-                MemData(7 downto 0) <= MemDB(7 downto 0);
-            end if;
-            if  WE1 = '0'  then
-                MemData(15 downto 8) <= MemDB(15 downto 8);
-            end if;
-            if  WE2 = '0'  then
-                MemData(23 downto 16) <= MemDB(23 downto 16);
-            end if;
-            if  WE3 = '0'  then
-                MemData(31 downto 24) <= MemDB(31 downto 24);
-            end if;
+                -- wait for the update to happen
+                -- wait for 0 ns;
 
-            -- finally write the updated value to memory
-            if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
-                 (to_integer(unsigned(MemAB)) - START_ADDR0) < (4 * MEMSIZE))  then
-                RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4) <= MemData;
-            elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR1) and
-                    (to_integer(unsigned(MemAB)) - START_ADDR1) < (4 * MEMSIZE))  then
-                RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4) <= MemData;
-            elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR2) and
-                 (to_integer(unsigned(MemAB)) - START_ADDR2) < (4 * MEMSIZE))  then
-                RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4) <= MemData;
-            elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR3) and
-                 (to_integer(unsigned(MemAB)) - START_ADDR3) < (4 * MEMSIZE))  then
-                RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4) <= MemData;
-            else
-                -- outside of any allowable address range - generate an error
-                assert (false)
-                    report  "Attempt to write to a non-existant address"
-                    severity  ERROR;
             end if;
-
-            -- wait for the update to happen
-            -- wait for 0 ns;
 
         end if;
-
-    end if;
         -- finally check if WE low with the address changing
+
+
+
         if  (MemAB'event and (WE = '0'))  then
             -- output error message
             REPORT "Glitch on Memory Address bus"
             SEVERITY  ERROR;
-            end if;
         end if;
 
 
     end process;
+
+
+    process
+        variable ram_temp : RAMtype;
+    begin
+        -- RAMbits0(0) <= "00000000000010000100000000000111";
+        report "Initial RAMbits0(0): " & to_hstring(RAMbits0(0));
+        wait for 0 ns;
+        -- RAMbits0(0) <= x"01234567";
+        -- RAMbits0(10) <= x"76543210";
+        -- wait for 0 ns;
+        -- RAMbits0(0)(15 downto  0) <= "0000000000001000";
+        -- RAMbits0(0)(31 downto 16) <= "0100000000000111";
+
+        load_ram(ram_temp, "test_mem_content/0.txt");
+        RAMbits0 <= ram_temp;
+        -- wait;
+        wait for 0 ns;
+        report "\n***********\nFinal RAMbits0(0): " & to_hstring(RAMbits0(0)) & "    \n***********\n";
+        report "\n***********\nFinal RAMbits0(8): " & to_hstring(RAMbits0(8)) & "    \n***********\n";
+        wait;
+    end process;
+
 
 
 end  behavioral;

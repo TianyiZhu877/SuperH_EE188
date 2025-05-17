@@ -6,7 +6,8 @@ package RamAccessMode is
     constant LONG_ACCESS : std_logic_vector(1 downto 0) := "10"; 
 end package;
 
-
+-- the entire system is byte addressed with big endianess (0th byte at 31 downto 24),
+-- but in small endian within a word 
 library ieee;
 use ieee.std_logic_1164.all;
 use work.RamAccessMode.all;
@@ -66,6 +67,7 @@ begin
 
 
     AB <= MemAB;
+    -- AB <= (others => '0');
     MemAB <= program_address  when   PD = '0' else
             data_address   when   PD = '1' else
             (others => 'X');
@@ -80,47 +82,47 @@ begin
 
                 case MemAB(1 downto 0) is
                     when "00" =>
-                        byte0 <= '1';
-                        byte1 <= '0';
-                        byte2 <= '0';
-                        byte3 <= '0';
-                        read_data(7 downto 0) <= read_data_internal(7 downto 0);
-                        write_data_internal(7 downto 0) <= write_data(7 downto 0);
-
-                    when "01" =>
-                        byte0 <= '0';
-                        byte1 <= '1';
-                        byte2 <= '0';
-                        byte3 <= '0';
-                        read_data(7 downto 0) <= read_data_internal(15 downto 8);
-                        write_data_internal(15 downto 8) <= write_data(7 downto 0);
-
-                    when "10" =>
-                        byte0 <= '0';
-                        byte1 <= '0';
-                        byte2 <= '1';
-                        byte3 <= '0';
-                        read_data(7 downto 0) <= read_data_internal(23 downto 16);
-                        write_data_internal(23 downto 16) <= write_data(7 downto 0);
-
-                    when "11" =>
                         byte0 <= '0';
                         byte1 <= '0';
                         byte2 <= '0';
                         byte3 <= '1';
-                        read_data(7 downto 0) <= read_data_internal(31 downto 24);
+                        -- read_data(7 downto 0) <= read_data_internal(31 downto 24);
                         write_data_internal(31 downto 24) <= write_data(7 downto 0);
+
+                    when "01" =>
+                        byte0 <= '0';
+                        byte1 <= '0';
+                        byte2 <= '1';
+                        byte3 <= '0';
+                        -- read_data(7 downto 0) <= read_data_internal(23 downto 16);
+                        write_data_internal(23 downto 16) <= write_data(7 downto 0);
+
+                    when "10" =>
+                        byte0 <= '0';
+                        byte1 <= '1';
+                        byte2 <= '0';
+                        byte3 <= '0';
+                        -- read_data(7 downto 0) <= read_data_internal(15 downto 8);
+                        write_data_internal(15 downto 8) <= write_data(7 downto 0);
+
+                    when "11" =>
+                        byte0 <= '1';
+                        byte1 <= '0';
+                        byte2 <= '0';
+                        byte3 <= '0';
+                        -- read_data(7 downto 0) <= read_data_internal(7 downto 0);
+                        write_data_internal(7 downto 0) <= write_data(7 downto 0);
 
                     when others =>
                         byte0 <= 'X';
                         byte1 <= 'X';
                         byte2 <= 'X';
                         byte3 <= 'X';
-                        read_data(7 downto 0) <= (others => 'X');
+                        -- read_data(7 downto 0) <= (others => 'X');
                         write_data_internal <= (others => 'X');
 
                 end case;
-                    read_data(31 downto 8) <= (31 downto 8 => read_data(7));
+                    -- read_data(31 downto 8) <= (31 downto 8 => read_data(7));
 
                 exception <= '0';
 
@@ -129,32 +131,32 @@ begin
             when WORD_ACCESS =>
                 case MemAB(1) is
                     when '0' =>
-                        byte0 <= '1';
-                        byte1 <= '1';
-                        byte2 <= '0';
-                        byte3 <= '0';
-                        read_data(15 downto 0) <= read_data_internal(15 downto 0);
-                        write_data_internal(15 downto 0) <= write_data(15 downto 0);
-                    when '1' =>
                         byte0 <= '0';
                         byte1 <= '0';
                         byte2 <= '1';
                         byte3 <= '1';
-                        read_data(15 downto 0) <= read_data_internal(31 downto 16);
+                        -- read_data(15 downto 0) <= read_data_internal(31 downto 16);
                         write_data_internal(31 downto 16) <= write_data(15 downto 0);
+
+                    when '1' =>
+                        byte0 <= '1';
+                        byte1 <= '1';
+                        byte2 <= '0';
+                        byte3 <= '0';
+                        -- read_data(15 downto 0) <= read_data_internal(15 downto 0);
+                        write_data_internal(15 downto 0) <= write_data(15 downto 0);
 
                     when others =>
                         byte0 <= 'X';
                         byte1 <= 'X';
                         byte2 <= 'X';
                         byte3 <= 'X';
-                        read_data(7 downto 0) <= (others => 'X');
+                        -- read_data(7 downto 0) <= (others => 'X');
                         write_data_internal <= (others => 'X');
                 end case;
-                read_data(31 downto 16) <= (31 downto 16 => read_data(15));
+                -- read_data(31 downto 16) <= (31 downto 16 => read_data(15));
 
                 exception <= MemAB(0);
-
 
 
             when LONG_ACCESS =>
@@ -162,7 +164,7 @@ begin
                 byte1 <= '1';
                 byte2 <= '1';
                 byte3 <= '1';
-                read_data <= read_data_internal;
+                -- read_data <= read_data_internal;
                 write_data_internal <= write_data;
 
                 exception <= MemAB(0) or MemAB(1);
@@ -173,23 +175,25 @@ begin
                 byte1 <= 'X';
                 byte2 <= 'X';
                 byte3 <= 'X';
-                read_data <= (others => 'X');
+                -- read_data <= (others => 'X');
                 write_data_internal <= (others => 'X');
                 
         end case;
+
+
 
 -- for read_data output routing
         case last_access_mode is
             when BYTE_ACCESS =>
                 case last_ab_10 is
                     when "00" =>
-                        read_data(7 downto 0) <= read_data_internal(7 downto 0);
-                    when "01" =>
-                        read_data(7 downto 0) <= read_data_internal(15 downto 8);
-                    when "10" =>
-                        read_data(7 downto 0) <= read_data_internal(23 downto 16);
-                    when "11" =>
                         read_data(7 downto 0) <= read_data_internal(31 downto 24);
+                    when "01" =>
+                        read_data(7 downto 0) <= read_data_internal(23 downto 16);
+                    when "10" =>
+                        read_data(7 downto 0) <= read_data_internal(15 downto 8);
+                    when "11" =>
+                        read_data(7 downto 0) <= read_data_internal(7 downto 0);
                     when others =>
                         read_data(7 downto 0) <= (others => 'X');
                 end case;
@@ -198,11 +202,11 @@ begin
             when WORD_ACCESS =>
                 case last_ab_10(1) is
                     when '0' =>
-                        read_data(15 downto 0) <= read_data_internal(15 downto 0);
-                    when '1' =>
                         read_data(15 downto 0) <= read_data_internal(31 downto 16);
+                    when '1' =>
+                        read_data(15 downto 0) <= read_data_internal(15 downto 0);
                     when others =>
-                        read_data(7 downto 0) <= (others => 'X');
+                        read_data(15 downto 0) <= (others => 'X');
                 end case;
                 read_data(31 downto 16) <= (31 downto 16 => read_data(15));
 

@@ -114,7 +114,7 @@ begin
 
     ram:  MEMORY32x32
         generic map(
-            START_ADDR0 => 0,
+            START_ADDR0 => 16#1000#,
             START_ADDR1 => 256,
             START_ADDR2 => 512,
             START_ADDR3 => 768
@@ -148,7 +148,7 @@ begin
     stim_proc: process
     begin
         -- Initial values
-        PC_reset_addr_debug <= x"00000000";
+        PC_reset_addr_debug <= x"00001000";
         Reset <= '1';
         NMI <= '1';
         INT <= '1';
@@ -162,7 +162,7 @@ begin
         wait for 5 us;
 
         -- End simulation
-        -- assert false report "End of simulation." severity failure;
+        assert false report "End of simulation." severity failure;
     end process;
 
 end architecture;

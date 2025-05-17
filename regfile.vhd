@@ -13,7 +13,8 @@ entity RegFile is
         read_sel_a : in  integer range 15 downto 0;         -- select the first register to output
         read_sel_b : in  integer range 15 downto 0;         -- select the second register to output
         data_out_a : out std_logic_vector(31 downto 0);     -- the data output for the first register
-        data_out_b : out std_logic_vector(31 downto 0)      -- the data output for the second register
+        data_out_b : out std_logic_vector(31 downto 0);     -- the data output for the second register
+        data_out_0 : out std_logic_vector(31 downto 0)      -- the data output for the second register
     );
 end RegFile;
 
@@ -74,7 +75,7 @@ begin
             clock      => clk,
             RegA       => data_out_a,
             RegB       => data_out_b,
-            RegA1      => open,
+            RegA1      => data_out_0,
             RegA2      => open,
             RegD       => open
         );
