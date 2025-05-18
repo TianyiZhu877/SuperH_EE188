@@ -116,6 +116,14 @@ architecture  behavioral  of  RegArray  is
     signal R5_debug: std_logic_vector(wordsize - 1 downto 0);
     signal R6_debug: std_logic_vector(wordsize - 1 downto 0);
     signal R7_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R8_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R9_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R10_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R11_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R12_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R13_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R14_debug: std_logic_vector(wordsize - 1 downto 0);
+    signal R15_debug: std_logic_vector(wordsize - 1 downto 0);
 
 begin
     R0_debug <= Registers(0);
@@ -126,6 +134,14 @@ begin
     R5_debug <= Registers(5);
     R6_debug <= Registers(6);
     R7_debug <= Registers(7);
+    R8_debug <= Registers(8);
+    R9_debug <= Registers(9);
+    R10_debug <= Registers(10);
+    R11_debug <= Registers(11);
+    R12_debug <= Registers(12);
+    R13_debug <= Registers(13);
+    R14_debug <= Registers(14);
+    R15_debug <= Registers(15);
 
     -- setup the outputs - choose based on select signals
     RegA   <=  Registers(RegASel);

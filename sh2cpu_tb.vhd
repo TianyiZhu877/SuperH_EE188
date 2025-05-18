@@ -14,7 +14,8 @@ architecture sim of SH2_CPU_tb is
     signal AB                     : std_logic_vector(31 downto 0);
     signal RE0, RE1, RE2, RE3     : std_logic;
     signal WE0, WE1, WE2, WE3     : std_logic;
-    signal DB                     : std_logic_vector(31 downto 0) := (others => 'Z');
+    signal DB_read                     : std_logic_vector(31 downto 0) := (others => 'Z');
+    signal DB_write                     : std_logic_vector(31 downto 0) := (others => 'Z');
 
     signal PC_reset_addr_debug    : std_logic_vector(31 downto 0) := (others => '0');    
     signal opcode_debug : std_logic_vector(15 downto 0);
@@ -35,7 +36,8 @@ architecture sim of SH2_CPU_tb is
         );
     
         port (
-            clk     : std_logic;
+            clk     : in std_logic;
+            reset   : in std_logic;
             RE0    : in     std_logic;      -- low byte read enable (active low)
             RE1    : in     std_logic;      -- byte 1 read enable (active low)
             RE2    : in     std_logic;      -- byte 2 read enable (active low)
@@ -45,7 +47,8 @@ architecture sim of SH2_CPU_tb is
             WE2    : in     std_logic;      -- byte 2 write enable (active low)
             WE3    : in     std_logic;      -- high byte write enable (active low)
             MemAB  : in     std_logic_vector(31 downto 0);  -- memory address bus
-            MemDB  : inout  std_logic_vector(31 downto 0)   -- memory data bus
+            MemDB_write  : in  std_logic_vector(31 downto 0);   -- memory data bus
+            MemDB_read  : out std_logic_vector(31 downto 0)   -- memory data bus
         );
     end  component;
 
@@ -64,7 +67,8 @@ architecture sim of SH2_CPU_tb is
             WE1     :  out    std_logic;                       -- second byte active low write enable
             WE2     :  out    std_logic;                       -- third byte active low write enable
             WE3     :  out    std_logic;                       -- fourth byte active low write enable
-            DB      :  inout  std_logic_vector(31 downto 0);    -- memory data bus
+            DB_write      :  out  std_logic_vector(31 downto 0);
+            DB_read      :  in  std_logic_vector(31 downto 0);
 
             -- debug input signals
             PC_reset_addr_debug      :  in  std_logic_vector(31 downto 0);    
@@ -100,7 +104,8 @@ begin
             WE1                 => WE1,
             WE2                 => WE2,
             WE3                 => WE3,
-            DB                  => DB,
+            DB_read  => DB_read,
+            DB_write  => DB_write,
 
             PC_reset_addr_debug => PC_reset_addr_debug,
             opcode_debug            => opcode_debug,
@@ -121,6 +126,7 @@ begin
         )
         port map(
             clk => clk,
+            reset => Reset,
             MemAB                  => AB,
             RE0                 => RE0,
             RE1                 => RE1,
@@ -130,7 +136,8 @@ begin
             WE1                 => WE1,
             WE2                 => WE2,
             WE3                 => WE3,
-            MemDB                  => DB
+            MemDB_read                  => DB_read,
+            MemDB_write                  => DB_write
         );
 
     -- clk generation

@@ -65,7 +65,8 @@ entity  SH2_CPU  is
         WE1     :  out    std_logic;                       -- second byte active low write enable
         WE2     :  out    std_logic;                       -- third byte active low write enable
         WE3     :  out    std_logic;                       -- fourth byte active low write enable
-        DB      :  inout  std_logic_vector(31 downto 0);    -- memory data bus
+        DB_write      :  out  std_logic_vector(31 downto 0);
+        DB_read      :  in  std_logic_vector(31 downto 0);
 
         -- debug input signals
         PC_reset_addr_debug      :  in  std_logic_vector(31 downto 0);    
@@ -97,7 +98,8 @@ architecture  structural  of  SH2_CPU  is
             data_address      :  in    std_logic_vector(31 downto 0);   -- memory address bus
         
             write_data :  in  std_logic_vector(31 downto 0);
-            DB      :  inout  std_logic_vector(31 downto 0);
+            DB_write      :  out  std_logic_vector(31 downto 0);
+            DB_read      :  in  std_logic_vector(31 downto 0);
             read_data  :  out  std_logic_vector(31 downto 0);
             AB  :  out  std_logic_vector(31 downto 0);
 
@@ -465,7 +467,8 @@ begin
             PC_LD_sel <= 1;
             LD_IR <= '1';
         end if;
-
+    
+    --Decoder
         case opcode(15 downto 12) is
             when "0000" =>
                 if (opcode(3 downto 0) = "0010") then 
@@ -491,22 +494,9 @@ begin
                         reg_write_addr_mux <= 0;
                     end if;
 
-                elsif (opcode(3 downto 0) = "0100") then 
-                    if (state = "10") then
-                        reg_read_a_mux <= '0';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 0;
-                        PrePostSel_D <= '0';
-                        ram_RW <= '1';
-                        ram_PD <= '1';
-                        ram_EN <= '1';
-                        reg_read_b_mux <= 1;
-                        ram_access_mode <= BYTE_ACCESS;
-                    end if;
-
-
                         
                 elsif (opcode(3 downto 0) = "0100") then 
+                -- MOV.B Rm, @(R0, Rn)
                     if (state = "10") then
                         reg_read_a_mux <= '0';
                         SrcSel_D <= 0;
@@ -521,6 +511,7 @@ begin
 
                 
                 elsif (opcode(3 downto 0) = "0101") then 
+                -- MOV.W Rm, @(R0, Rn)
                     if (state = "10") then
                         reg_read_a_mux <= '0';
                         SrcSel_D <= 0;
@@ -534,6 +525,7 @@ begin
                     end if;  
                 
                 elsif (opcode(3 downto 0) = "0110") then 
+                -- MOV.L Rm, @(R0, Rn)
                     if (state = "10") then
                         reg_read_a_mux <= '0';
                         SrcSel_D <= 0;
@@ -547,6 +539,7 @@ begin
                     end if;
 
                 elsif (opcode(3 downto 0) = "1100") then 
+                -- MOV.B @(R0, Rn), Rm 
                     if (state = "10") then
                         reg_read_a_mux <= '1';
                         SrcSel_D <= 0;
@@ -563,6 +556,7 @@ begin
                     end if;
                     
                 elsif (opcode(3 downto 0) = "1101") then 
+                -- MOV.W @(R0, Rn), Rm 
                     if (state = "10") then
                         reg_read_a_mux <= '1';
                         SrcSel_D <= 0;
@@ -579,6 +573,7 @@ begin
                     end if;
                         
                 elsif (opcode(3 downto 0) = "1110") then 
+                -- MOV.L @(R0, Rn), Rm 
                     if (state = "10") then
                         reg_read_a_mux <= '1';
                         SrcSel_D <= 0;
@@ -635,6 +630,58 @@ begin
                         end if;
                     end if;
                 end if;
+
+            when "0001" => 
+            -- mov.l Rm, @(diso, Rn)
+                if (state = "10") then
+                    reg_read_b_mux <= 1;
+                    reg_read_a_mux <= '0';
+                    SrcSel_D <= 0;
+                    DispCutoff_D <= 0;
+                    OffsetSel_D <= 4;
+                    PrepostSel_D <= '0';
+
+                    ram_access_mode <= LONG_ACCESS;
+                    ram_RW <= '1';
+                    ram_PD <= '1';
+                    ram_EN <= '1';
+                end if;
+
+            
+            when "0010" => 
+            -- mov.B/W/L Rm, @Rn
+                case opcode(3 downto 0) is 
+                    when "0000" =>
+                        if (state = "10") then
+                            ram_access_mode <= BYTE_ACCESS;
+                            ram_PD <= '1';
+                        end if;
+                    when "0001" =>
+                        if (state = "10") then
+                            ram_access_mode <= WORD_ACCESS;
+                            ram_EN <= '1';
+                        end if;
+                    when "0010" => 
+                        if (state = "10") then
+                            ram_access_mode <= LONG_ACCESS;
+                            ram_EN <= '1';
+                        end if;
+                    when others =>
+                        null;
+                end case;
+                                
+                if (state = "10") then
+                    reg_read_b_mux <= 1;
+                    reg_read_a_mux <= '0';
+                    SrcSel_D <= 0;
+                    OffsetSel_D <= 1;
+                    IncDecVal_D <= "0000";
+                    PrepostSel_D <= '0';
+
+                    ram_RW <= '1';
+                    ram_PD <= '1';
+                end if;
+                
             
             when "0101" =>
             -- mov.L @(disp:4, Rm), Rn
@@ -899,7 +946,8 @@ begin
                 data_address  => ram_data_address,   -- memory address bus
 
                 write_data => reg_out_b,
-                DB     => DB,
+                DB_write => DB_write,
+                DB_read  => DB_read,
                 read_data => ram_data_read,
                 AB => AB,
                 

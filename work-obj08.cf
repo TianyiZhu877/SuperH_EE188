@@ -1,54 +1,54 @@
 v 4
-file . "sh2cpu_tb.vhd" "ffa3cde2a8db9937ccc72cdc4d0e2ff3473dbc48" "20250517155537.903":
-  entity sh2_cpu_tb at 1( 0) + 0 on 9031;
-  architecture sim of sh2_cpu_tb at 8( 111) + 0 on 9032;
-file . "sh2cpue.vhd" "ec75d94fa91af32aafefac9697e05a5307873f9e" "20250517155537.776":
-  entity sh2_cpu at 41( 1307) + 0 on 9027;
-  architecture structural of sh2_cpu at 88( 3462) + 0 on 9028;
-file . "ram_routing.vhd" "577dfd2328fa154112faa597d162fd63b310b2b4" "20250517155537.709":
-  package ramaccessmode at 1( 0) + 0 on 9005;
-  entity ramrouting at 11( 416) + 0 on 9006;
-  architecture structural of ramrouting at 44( 2194) + 0 on 9007;
-file . "data_addr_unit.vhd" "3cbb8d260d3191686dc1d440634d37a39bd58ddb" "20250517155537.704":
-  entity dataaddrunit at 1( 0) + 0 on 9001;
-  architecture behavioral of dataaddrunit at 44( 2117) + 0 on 9002;
-file . "mau_general.vhd" "cc6d50ca3db106500b838e6b11e85049ed738788" "20250517155537.702":
-  package array_type_pkg at 32( 1213) + 0 on 8995;
-  package memunitconstants at 49( 1498) + 0 on 8996;
-  entity memunit at 132( 3734) + 0 on 8999;
-  architecture dataflow of memunit at 160( 4602) + 0 on 9000;
-file . "regfile.vhd" "ea61ddc7ac2fbd05bb3012ff07b878b52f87f4ef" "20250517155537.714":
-  entity regfile at 1( 0) + 0 on 9010;
-  architecture behavioral of regfile at 21( 1140) + 0 on 9011;
-file . "reg.vhd" "29ade750d268cc9595e36363b71629e8d3285c98" "20250418102530.011":
-  entity reg at 1( 0) + 0 on 21;
-  architecture behavioral of reg at 21( 642) + 0 on 22;
-file . "reg_general.vhd" "137cb96e5d2665e8235ccca9028f68a6ddd2ac00" "20250517155537.711":
-  entity regarray at 61( 2645) + 0 on 9008;
-  architecture behavioral of regarray at 97( 4133) + 0 on 9009;
-file . "alu_general.vhd" "dc095e5f28f0ad977b547d5d935eddd6c22740e2" "20250517155537.718":
-  package aluconstants at 37( 1393) + 0 on 9012;
-  entity fblockbit at 112( 3719) + 0 on 9013;
-  architecture dataflow of fblockbit at 127( 4114) + 0 on 9014;
-  entity adderbit at 155( 4751) + 0 on 9015;
-  architecture dataflow of adderbit at 171( 5154) + 0 on 9016;
-  entity fblock at 216( 6230) + 0 on 9017;
-  architecture structural of fblock at 236( 6759) + 0 on 9018;
-  entity adder at 279( 7896) + 0 on 9019;
-  architecture structural of adder at 303( 8807) + 0 on 9020;
-  entity shifter at 363( 10821) + 0 on 9021;
-  architecture dataflow of shifter at 385( 11478) + 0 on 9022;
-  entity alugeneral at 465( 14808) + 0 on 9023;
-  architecture structural of alugeneral at 494( 16195) + 0 on 9024;
-file . "ALU.vhd" "fcf2118bb1dfb3918a28a3e03fbb58b3b17084bf" "20250517155537.721":
-  entity alu at 1( 0) + 0 on 9025;
-  architecture structural of alu at 32( 1538) + 0 on 9026;
+file . "memory.vhd" "502cabc219c21548af579ba5b83b66a9660c4fe7" "20250518063838.670":
+  entity memory32x32 at 52( 2130) + 0 on 10663;
+  architecture behavioral of memory32x32 at 91( 3770) + 0 on 10664;
+file . "program_addr_unit.vhd" "2f77e6a1e5637b12e112fd7e9f0a1dc1679443c9" "20250518063838.535":
+  entity programaddrunit at 1( 0) + 0 on 10637;
+  architecture behavioral of programaddrunit at 31( 1178) + 0 on 10638;
 file . "addr_unit.vhd" "b2a03dee66eac0f668f04b3c980f2f36d6fd568f" "20250419182854.023":
   entity addrunit at 1( 0) + 0 on 77;
   architecture behavioral of addrunit at 46( 2193) + 0 on 78;
-file . "program_addr_unit.vhd" "2f77e6a1e5637b12e112fd7e9f0a1dc1679443c9" "20250517155537.707":
-  entity programaddrunit at 1( 0) + 0 on 9003;
-  architecture behavioral of programaddrunit at 31( 1178) + 0 on 9004;
-file . "memory.vhd" "280bd95a4b938e9296d6724a53a692ddf46b9823" "20250517155537.794":
-  entity memory32x32 at 52( 2130) + 0 on 9029;
-  architecture behavioral of memory32x32 at 89( 3652) + 0 on 9030;
+file . "ALU.vhd" "fcf2118bb1dfb3918a28a3e03fbb58b3b17084bf" "20250518063838.551":
+  entity alu at 1( 0) + 0 on 10659;
+  architecture structural of alu at 32( 1538) + 0 on 10660;
+file . "alu_general.vhd" "dc095e5f28f0ad977b547d5d935eddd6c22740e2" "20250518063838.548":
+  package aluconstants at 37( 1393) + 0 on 10646;
+  entity fblockbit at 112( 3719) + 0 on 10647;
+  architecture dataflow of fblockbit at 127( 4114) + 0 on 10648;
+  entity adderbit at 155( 4751) + 0 on 10649;
+  architecture dataflow of adderbit at 171( 5154) + 0 on 10650;
+  entity fblock at 216( 6230) + 0 on 10651;
+  architecture structural of fblock at 236( 6759) + 0 on 10652;
+  entity adder at 279( 7896) + 0 on 10653;
+  architecture structural of adder at 303( 8807) + 0 on 10654;
+  entity shifter at 363( 10821) + 0 on 10655;
+  architecture dataflow of shifter at 385( 11478) + 0 on 10656;
+  entity alugeneral at 465( 14808) + 0 on 10657;
+  architecture structural of alugeneral at 494( 16195) + 0 on 10658;
+file . "reg_general.vhd" "d54e46b24aeb5c09c14e004488edc4fe5e921631" "20250518063838.541":
+  entity regarray at 61( 2645) + 0 on 10642;
+  architecture behavioral of regarray at 97( 4133) + 0 on 10643;
+file . "reg.vhd" "29ade750d268cc9595e36363b71629e8d3285c98" "20250418102530.011":
+  entity reg at 1( 0) + 0 on 21;
+  architecture behavioral of reg at 21( 642) + 0 on 22;
+file . "regfile.vhd" "ea61ddc7ac2fbd05bb3012ff07b878b52f87f4ef" "20250518063838.544":
+  entity regfile at 1( 0) + 0 on 10644;
+  architecture behavioral of regfile at 21( 1140) + 0 on 10645;
+file . "mau_general.vhd" "cc6d50ca3db106500b838e6b11e85049ed738788" "20250518063838.524":
+  package array_type_pkg at 32( 1213) + 0 on 10629;
+  package memunitconstants at 49( 1498) + 0 on 10630;
+  entity memunit at 132( 3734) + 0 on 10633;
+  architecture dataflow of memunit at 160( 4602) + 0 on 10634;
+file . "data_addr_unit.vhd" "3cbb8d260d3191686dc1d440634d37a39bd58ddb" "20250518063838.530":
+  entity dataaddrunit at 1( 0) + 0 on 10635;
+  architecture behavioral of dataaddrunit at 44( 2117) + 0 on 10636;
+file . "ram_routing.vhd" "cbb500e71e4a427b64c8c9b35de623693115336a" "20250518063838.538":
+  package ramaccessmode at 1( 0) + 0 on 10639;
+  entity ramrouting at 11( 416) + 0 on 10640;
+  architecture structural of ramrouting at 45( 2258) + 0 on 10641;
+file . "sh2cpue.vhd" "d7bbc1ded007274bae08fc76d47ddcf1425a80e6" "20250518063838.602":
+  entity sh2_cpu at 41( 1307) + 0 on 10661;
+  architecture structural of sh2_cpu at 89( 3504) + 0 on 10662;
+file . "sh2cpu_tb.vhd" "7ce17f01a02eb623b915594e7c031289a64cdfa6" "20250518063838.730":
+  entity sh2_cpu_tb at 1( 0) + 0 on 10665;
+  architecture sim of sh2_cpu_tb at 8( 111) + 0 on 10666;
