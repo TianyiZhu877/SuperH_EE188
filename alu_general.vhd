@@ -547,7 +547,7 @@ begin
     FB1:   FBlock   generic map (wordsize)
                     port map  (ALUOpA, ALUOpB, FCmd, FBRes);
     Add1:  Adder    generic map (wordsize)
-                    port map  (ALUOpA, FBRes, Cin, CinCmd,
+                    port map  (ALUOpA, ALUOpB, Cin, CinCmd,
                                AddRes, AddCout, HalfCout, Overflow);
     Sh1:   Shifter  generic map (wordsize)
                     port map  (ALUOpA, Cin, SCmd, ShRes, ShCout);

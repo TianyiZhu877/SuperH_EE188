@@ -781,8 +781,7 @@ begin
                         ram_PD <= '1';
                     
                     elsif (state = "11") then
-                        reg_write_in_mux <= 2;
-                        reg_write_addr_mux <= 0;
+                        reg_write_in_mux <= 0;
                     end if;
                 
                 end if;
@@ -916,10 +915,12 @@ begin
                 end if;
 
             when "0111" =>
+            -- add imm, Rn
                 if (state = "10") then
                     reg_read_a_mux <= '0';
                     alu_op_b_sel <= 1;
                     alu_op_a_sel <= '0';
+                    adder_cin_sel <= 0;
                     ALUCmd <= ALUCmd_ADDER;
                     addSub <= '1';
                 elsif (state = "11") then
@@ -950,7 +951,7 @@ begin
             
 
             when "1100" =>
-                if opcode(11 downto 8) = "0111" then
+                if opcode(11 downto 10) = "00" then
                 -- mov.B/W/L R0, @(disp:8, GBR)
                     case opcode(9 downto 8) is
                         when "00" =>

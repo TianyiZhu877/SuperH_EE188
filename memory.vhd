@@ -299,18 +299,22 @@ begin
     end process;
 
     process(all) begin 
-        if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
-            (to_integer(unsigned(MemAB)) - START_ADDR0 < (4 * MEMSIZE)))  then
+        if  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR0) and
+            (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR0 < (4 * MEMSIZE)))  then
             MemData <= RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4);
-        elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR1) and
-                (to_integer(unsigned(MemAB)) - START_ADDR1) < (4 * MEMSIZE))  then
+
+        elsif  (((to_integer(unsigned(MemAB(30 downto 0)))) >= START_ADDR1) and
+                (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR1) < (4 * MEMSIZE))  then
             MemData <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4);
-        elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR2) and
-        (to_integer(unsigned(MemAB)) - START_ADDR2) < (4 * MEMSIZE)) then
+
+        elsif  (((to_integer(unsigned(MemAB(30 downto 0)))) >= START_ADDR2) and
+        (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR2) < (4 * MEMSIZE)) then
             MemData <= RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4);
-        elsif  (((to_integer(unsigned(MemAB))) >= START_ADDR3) and
-                (to_integer(unsigned(MemAB)) - START_ADDR3) < (4 * MEMSIZE))  then
+
+        elsif  (((to_integer(unsigned(MemAB(30 downto 0)))) >= START_ADDR3) and
+                (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR3) < (4 * MEMSIZE))  then
             MemData <= RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4);
+            
         else
             MemData <= (others => 'X');
             -- null;
