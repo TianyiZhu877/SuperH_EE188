@@ -119,10 +119,11 @@ begin
 
     ram:  MEMORY32x32
         generic map(
+            MEMSIZE => 1024,
             START_ADDR0 => 16#1000#,
-            START_ADDR1 => 256,
-            START_ADDR2 => 512,
-            START_ADDR3 => 768
+            START_ADDR1 => 1024,
+            START_ADDR2 => 2048,
+            START_ADDR3 => 3072
         )
         port map(
             clk => clk,

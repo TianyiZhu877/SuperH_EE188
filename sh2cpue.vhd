@@ -224,26 +224,23 @@ architecture  structural  of  SH2_CPU  is
     signal reg_write_in_mux : integer range 0 to 3;         -- select the register to write
     signal reg_write_in_sel_regs : integer range 0 to 7;         -- select when reg_write_in_mux = 3
     signal reg_write_en: std_logic;
+    -- RAM routing
+    signal ram_EN          : std_logic;      -- 1 for enable, 0 for disable
+    signal ram_PD          : std_logic;      -- 0 for program, 1 for data memory 
+    signal ram_RW          : std_logic;      -- 0 for read, 1 for write, force read if program
+    signal ram_access_mode : std_logic_vector(1 downto 0);       -- force WORD_ACCESS if program 
     -- control register
     -- signal LD_PC: std_logic;
-    signal LD_PR: std_logic;
+    signal PR_LD_sel: integer range 0 to 2;
     signal LD_IR: std_logic;
     signal T_LD_sel: integer range 0 to 4;
     signal LD_S: std_logic;                             -- unused
     signal LD_SR_I: std_logic;                          -- unused
     signal LD_GBR: std_logic;
     signal PC_LD_sel : integer range 0 to 3;         -- select the register to write
+    signal MACH_LD_sel, MACL_LD_sel : integer range 0 to 3;         -- select the register to write
     -- signal GBR_LD_sel : integer range 0 to 2;         -- select the register to write
-    -- RAM routing
-    signal ram_EN          : std_logic;      -- 1 for enable, 0 for disable
-    signal ram_PD          : std_logic;      -- 0 for program, 1 for data memory 
-    signal ram_RW          : std_logic;      -- 0 for read, 1 for write, force read if program
-    signal ram_access_mode : std_logic_vector(1 downto 0);       -- force WORD_ACCESS if program 
 
-
--- pipeline registers
-    signal opcode: std_logic_vector(15 downto 0);
-    signal PC_EX: std_logic_vector(31 downto 0);   -- address for a program currently at executiong stage
 -- registers
     signal PC: std_logic_vector(31 downto 0);
     signal PR: std_logic_vector(31 downto 0);
@@ -253,6 +250,11 @@ architecture  structural  of  SH2_CPU  is
     signal SR_S:  std_logic;
     signal SR_T:  std_logic;
     signal SR: std_logic_vector(31 downto 0);
+    signal MACH, MACL: std_logic_vector(31 downto 0);
+-- pipeline registers
+    signal opcode: std_logic_vector(15 downto 0);
+    signal PC_EX: std_logic_vector(31 downto 0);   -- address for a program currently at executiong stage
+
 
 -- interconnect signals
     signal program_address      : std_logic_vector(31 downto 0);   -- program address bus
@@ -341,10 +343,12 @@ begin
 
 
     -- control registers
-                if (LD_PR = '1') then
-                    PR <= PC;
-                elsif (LD_PR = '0') then
+                if (PR_LD_sel = 0) then
                     PR <= PR;
+                elsif (PR_LD_sel = 1) then
+                    PR <= reg_out_b;
+                elsif (PR_LD_sel = 2) then
+                    PR <= PC;
                 else
                     PR <= (others => 'X');
                 end if;
@@ -358,7 +362,7 @@ begin
                 end if;
 
                 if (LD_GBR) then
-                    GBR <= reg_out_b_WB;
+                    GBR <= reg_out_b;
                 else
                     GBR <= GBR;
                 end if;
@@ -401,6 +405,27 @@ begin
             else
                 SR_T <= 'X'; 
             end if;
+            
+            if (MACH_LD_sel = 0) then
+                MACH <= MACH;
+            elsif (MACH_LD_sel = 1) then
+                MACH <= reg_out_b;
+            elsif (MACH_LD_sel = 1) then
+                MACH <= (others => '0');
+            else
+                MACH <= (others => 'X');
+            end if;
+
+            if (MACL_LD_sel = 0) then
+                MACL <= MACL;
+            elsif (MACL_LD_sel = 1) then
+                MACL <= reg_out_b;
+            elsif (MACL_LD_sel = 1) then
+                MACL <= (others => '0');
+            else
+                MACL <= (others => 'X');
+            end if;
+                
 
         end if;
     end process;
@@ -442,14 +467,15 @@ begin
         reg_write_in_sel_regs <= 0;
         reg_write_en <= '0';
         -- control register
-        LD_PR <= '0';
         LD_IR <= '0';
         T_LD_SEL <= 0;
         LD_S <= '0';
         PC_LD_sel <= 0;         -- select the register to write, to-do: for unpipelined, increment in decode stage, 
         -- but for pipelined, increment almost all the time, thus needs reset address to one previous first command!
+        MACL_LD_sel <= 0;
+        MACH_LD_sel <= 0;
         LD_GBR <= '0';         -- select the register to write
-        LD_PR <= '0';         -- select the register to write
+        PR_LD_sel <= 0;         -- select the register to write
         ram_EN <= '0';      -- 1 for enable, 0 for disable
         ram_PD <= '0';      -- 0 for program, 1 for data memory 
         ram_RW  <= '0';      -- 0 for read, 1 for write, force read if program
@@ -536,7 +562,34 @@ begin
                         ram_EN <= '1';
                         reg_read_b_mux <= 1;
                         ram_access_mode <= LONG_ACCESS;
+                        
                     end if;
+
+                elsif (opcode(3 downto 0) = "1000") then 
+                    case opcode(11 downto 4) is
+                        when "00000000" =>
+                        -- CLRT
+                            if (state = "10") then
+                                T_LD_sel <= 3;
+                            end if;
+                            
+                        when "00000001" =>
+                        -- SETT
+                            if (state = "10") then
+                                T_LD_sel <= 4;
+                            end if;
+
+                        when "00000010" =>
+                        -- CLRT
+                            if (state = "10") then
+                                MACH_LD_sel <= 2;
+                                MACL_LD_sel <= 2;
+                            end if;
+                        
+                        when others =>
+                            null;
+                    end case;
+
 
                 elsif (opcode(3 downto 0) = "1100") then 
                 -- MOV.B @(R0, Rn), Rm 
@@ -649,39 +702,91 @@ begin
 
             
             when "0010" => 
-            -- mov.B/W/L Rm, @Rn
-                case opcode(3 downto 0) is 
-                    when "0000" =>
-                        if (state = "10") then
-                            ram_access_mode <= BYTE_ACCESS;
-                            ram_PD <= '1';
-                        end if;
-                    when "0001" =>
-                        if (state = "10") then
-                            ram_access_mode <= WORD_ACCESS;
-                            ram_EN <= '1';
-                        end if;
-                    when "0010" => 
-                        if (state = "10") then
-                            ram_access_mode <= LONG_ACCESS;
-                            ram_EN <= '1';
-                        end if;
-                    when others =>
-                        null;
-                end case;
-                                
-                if (state = "10") then
-                    reg_read_b_mux <= 1;
-                    reg_read_a_mux <= '0';
-                    SrcSel_D <= 0;
-                    OffsetSel_D <= 1;
-                    IncDecVal_D <= "0000";
-                    PrepostSel_D <= '0';
+                if (opcode(3 downto 2) = "00") then
+                -- mov.B/W/L Rm, @Rn
+                    case opcode(1 downto 0) is 
+                        when "00" =>
+                            if (state = "10") then
+                                ram_access_mode <= BYTE_ACCESS;
+                                ram_EN <= '1';
+                            end if;
+                        when "01" =>
+                            if (state = "10") then
+                                ram_access_mode <= WORD_ACCESS;
+                                ram_EN <= '1';
+                            end if;
+                        when "10" => 
+                            if (state = "10") then
+                                ram_access_mode <= LONG_ACCESS;
+                                ram_EN <= '1';
+                            end if;
+                        when others =>
+                            null;
+                    end case;
+                                    
+                    if (state = "10") then
+                        reg_read_b_mux <= 1;
+                        reg_read_a_mux <= '0';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 1;
+                        IncDecVal_D <= "0000";
+                        PrepostSel_D <= '0';
 
-                    ram_RW <= '1';
-                    ram_PD <= '1';
-                end if;
+                        ram_RW <= '1';
+                        ram_PD <= '1';
+                    end if;
+
+
+                elsif (opcode(3 downto 2) = "01") then
+                -- mov.B/W/L Rm, @-Rn
+                    case opcode(1 downto 0) is 
+                        when "00" =>
+                            if (state = "10") then
+                                IncDecVal_D <= "1111";
+                                ram_access_mode <= BYTE_ACCESS;
+                                ram_EN <= '1';
+                            elsif (state = "11") then
+                                reg_write_en <= '1';
+                            end if;
+                        
+                        when "01" =>
+                            if (state = "10") then
+                                IncDecVal_D <= "1110";
+                                ram_access_mode <= WORD_ACCESS;
+                                ram_EN <= '1';
+                            elsif (state = "11") then
+                                reg_write_en <= '1';
+                            end if;
+                        
+                        when "10" =>
+                            if (state = "10") then
+                                IncDecVal_D <= "1100";
+                                ram_access_mode <= LONG_ACCESS;
+                                ram_EN <= '1';
+                            elsif (state = "11") then
+                                reg_write_en <= '1';
+                            end if;
+                        when others =>
+                            null;
+                    end case;
+                    
+                    if (state = "10") then
+                        reg_read_b_mux <= 1;
+                        reg_read_a_mux <= '0';
+                        SrcSel_D <= 0;
+                        OffsetSel_D <= 1;
+                        PrepostSel_D <= '0';
+
+                        ram_RW <= '1';
+                        ram_PD <= '1';
+                    
+                    elsif (state = "11") then
+                        reg_write_in_mux <= 2;
+                        reg_write_addr_mux <= 0;
+                    end if;
                 
+                end if;
+
             
             when "0101" =>
             -- mov.L @(disp:4, Rm), Rn
@@ -772,6 +877,58 @@ begin
                     end case;
                 end if;
 
+            when "0100" =>
+                if opcode(3 downto 0) = "1110" or opcode(3 downto 0) = "1010" then
+                    case opcode(7 downto 2) is
+                        -- LDC/S Rm
+                        when "000010" =>
+                        -- MACH
+                            if (state = "10") then
+                                MACH_LD_sel <= 2;
+                            end if;
+                        when "000110" =>
+                        -- MACL
+                            if (state = "10") then
+                                MACL_LD_sel <= 2;
+                            end if;
+                        when "001010" =>
+                        -- PR
+                            if (state = "10") then
+                                PR_LD_sel <= 1;
+                            end if;
+                        when "000011" =>
+                        -- SR
+                            if (state = "10") then
+                                T_LD_sel <= 2;
+                            end if;
+                        when "000111" =>
+                        -- GBR
+                            if (state = "10") then
+                                LD_GBR <= '1';
+                            end if;
+                        when others =>
+                            null;
+                    end case;
+                    
+                    if (state = "10") then
+                        reg_read_b_mux <= 0;
+                    end if;
+                end if;
+
+            when "0111" =>
+                if (state = "10") then
+                    reg_read_a_mux <= '0';
+                    alu_op_b_sel <= 1;
+                    alu_op_a_sel <= '0';
+                    ALUCmd <= ALUCmd_ADDER;
+                    addSub <= '1';
+                elsif (state = "11") then
+                    reg_write_en <= '1';
+                    reg_write_in_mux <= 1;
+                    reg_write_addr_mux <= 0;
+                end if;
+
+                
 
             when "1001" =>
             -- mov.W @(disp:8, PC), Rn
@@ -790,7 +947,97 @@ begin
                     reg_write_in_mux <= 2;
                     reg_write_addr_mux <= 0;
                 end if;
+            
 
+            when "1100" =>
+                if opcode(11 downto 8) = "0111" then
+                -- mov.B/W/L R0, @(disp:8, GBR)
+                    case opcode(9 downto 8) is
+                        when "00" =>
+                            if (state = "10") then
+                                ram_access_mode <= BYTE_ACCESS;
+                                OffsetSel_D <= 2;
+                            end if;
+                        when "01" =>
+                            if (state = "10") then
+                                ram_access_mode <= WORD_ACCESS;
+                                OffsetSel_D <= 3;
+                            end if;
+                        when "10" =>
+                            if (state = "10") then
+                                ram_access_mode <= LONG_ACCESS;
+                                OffsetSel_D <= 4;
+                            end if;
+                        when others =>
+                            null;
+                    end case;
+                    
+                    if (state = "10") then
+                        SrcSel_D <= 3;
+                        DispCutoff_D <= 1;
+                        PrepostSel_D <= '0';
+                        reg_read_b_mux <= 2;
+
+                        ram_RW <= '1';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                    end if;
+
+                elsif (opcode(11 downto 10) = "01") and (opcode(9 downto 8) /= "11") then
+                -- mov.B/W/L @(disp:8, GBR), R0
+                    case opcode(9 downto 8) is
+                        when "00" =>
+                            if (state = "10") then
+                                ram_access_mode <= BYTE_ACCESS;
+                                OffsetSel_D <= 2;
+                            end if;
+                        when "01" =>
+                            if (state = "10") then
+                                ram_access_mode <= WORD_ACCESS;
+                                OffsetSel_D <= 3;
+                            end if;
+                        when "10" =>
+                            if (state = "10") then
+                                ram_access_mode <= LONG_ACCESS;
+                                OffsetSel_D <= 4;
+                            end if;
+                        when others =>
+                            null;
+                    end case;
+                    
+                    if (state = "10") then
+                        SrcSel_D <= 3;
+                        DispCutoff_D <= 1;
+                        PrepostSel_D <= '0';
+
+                        ram_RW <= '0';
+                        ram_PD <= '1';
+                        ram_EN <= '1';
+                    elsif (state = "11") then
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 2;
+                        reg_write_addr_mux <= 2;
+                    end if;
+                
+                elsif opcode(11 downto 8) = "0111" then
+                -- mova @(disp, PC), R0
+                    if (state = "10") then
+                        SrcSel_D <= 2;
+                        DispCutoff_D <= 1;
+                        OffsetSel_D <= 4;
+                        PrepostSel_D <= '0';
+                        ram_EN <= '0';
+                    elsif (state = "11") then
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 2;
+                        reg_write_addr_mux <= 2;
+                    end if;
+
+                end if;
+
+
+            -- mov.B/W/L
+                
 
             when "1101" =>
             -- mov.L @(disp:8, PC), Rn
@@ -846,6 +1093,8 @@ begin
     reg_in_reg_sel_result <= reg_out_b_WB when reg_write_in_sel_regs = 0 else
                             SR when reg_write_in_sel_regs = 1 else
                             GBR when reg_write_in_sel_regs = 2 else
+                            MACH when reg_write_in_sel_regs = 4 else
+                            MACL when reg_write_in_sel_regs = 5 else
                             PR when reg_write_in_sel_regs = 6 else
                             (31 downto 1 => '0') & SR_T when reg_write_in_sel_regs = 7 else
                             (others => 'X');
@@ -944,14 +1193,12 @@ begin
                 access_mode => ram_access_mode,       -- force WORD_ACCESS if program     
                 program_address => PC_pre,   -- memory address bus
                 data_address  => ram_data_address,   -- memory address bus
-
                 write_data => reg_out_b,
+                read_data => ram_data_read,
+
                 DB_write => DB_write,
                 DB_read  => DB_read,
-                read_data => ram_data_read,
                 AB => AB,
-                
-
                 RE0   => RE0,                       -- first byte active low read enable
                 RE1  => RE1,                       -- second byte active low read enable
                 RE2  => RE2,                       -- third byte active low read enable

@@ -81,14 +81,14 @@ begin
     PC_plus_4 <= std_logic_vector(unsigned(PC) + 4);
     process (all) begin
     -- for base addr selections, selected when SrcSel:
-        AddrSrc(0) <= Rn;                       -- 0
+        AddrSrc(0) <= Rn;                       -- 0    Rn
         AddrSrc(1) <= PC_plus_4;                -- 1
         AddrSrc(2) <= PC_plus_4(31 downto 2) & "00";                -- 2
         AddrSrc(3) <= GBR;                      -- 3
         AddrSrc(4) <= (others => '0');                      -- 4
 
     -- inputs for offset selection, selected when OffsetSel:
-        AddrOff(0) <= R0;                               -- 0
+        AddrOff(0) <= R0;                               -- 0    R0
         AddrOff(1) <= (31 downto 4 => IncDecVal(3)) & IncDecVal;                  -- 1 inc dec val                              
         AddrOff(2) <= (31 downto 12 => disp_internal(11)) & disp_internal;  -- 2 (disp)
         AddrOff(3) <= (31 downto 13 => disp_internal(11)) & disp_internal & '0';    -- 3 (disp << 1)
