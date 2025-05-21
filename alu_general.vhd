@@ -73,6 +73,14 @@ package  ALUConstants  is
    constant ALUCmd_SHIFT   : std_logic_vector(1 downto 0) := "10";
 
 
+--  ALU special command constants
+
+   constant SpecCmd_SHIFT  : std_logic_vector(1 downto 0) := "00";
+   constant SpecCmd_XTUCT   : std_logic_vector(1 downto 0) := "01";
+   constant SpecCmd_EXT   : std_logic_vector(1 downto 0) := "10";
+   constant SpecCmd_MUL   : std_logic_vector(1 downto 0) := "11";
+
+
 end package;
 
 

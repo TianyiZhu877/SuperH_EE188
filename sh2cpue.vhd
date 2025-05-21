@@ -164,10 +164,14 @@ architecture  structural  of  SH2_CPU  is
             ALUOpB   : in      std_logic_vector(31 downto 0);   -- second operand
             immd   : in  std_logic_vector(7 downto 0);   -- immediate value (IR 7-0)
             T        : in      std_logic;                       -- T flag 
-    
+
             op_a_sel   : in    std_logic;
             op_b_sel   : in    integer  range 0 to 2;
             adder_cin_sel   : in    integer  range 0 to 2;
+            adder_T_out_sel : in    integer range 0 to 8;
+
+            ALU_special_cmd : in std_logic;
+            MULCmd: in      integer  range 0 to 3;
             
             AddSub   : in      std_logic;                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
             ALUCmd   : in      std_logic_vector(1 downto 0);    -- ALU result select
@@ -175,10 +179,8 @@ architecture  structural  of  SH2_CPU  is
             SCmd     : in      std_logic_vector(2 downto 0);    -- shift operation
             
             Result   : buffer  std_logic_vector(31 downto 0);   -- ALU result
-            C     : out     std_logic;                       -- carry out
-            V : out     std_logic;                        -- overflow
-            S : out     std_logic;                        -- sign
-            Z : out     std_logic                        -- zero                      -- signed overflow
+            MACH_out : out std_logic_vector(31 downto 0);  
+            T_out: out std_logic                   -- signed overflow
         );
     end component;
 
@@ -212,11 +214,13 @@ architecture  structural  of  SH2_CPU  is
     signal alu_op_a_sel   : std_logic;
     signal alu_op_b_sel: integer  range 0 to 2;
     signal adder_cin_sel : integer  range 0 to 2;
+    signal adder_T_out_sel : integer range 0 to 8;
+    signal ALU_special_cmd : std_logic;
+    signal MULCmd: integer  range 0 to 3;
     signal AddSub   :   std_logic;                       -- 1 for add, 0 for sub, always the bit2 or 1 when 0111!  
     signal ALUCmd   :   std_logic_vector(1 downto 0);    -- ALU result select
     signal FCmd     :   std_logic_vector(3 downto 0);    -- F-Block operation
     signal SCmd     :   std_logic_vector(2 downto 0);    -- shift operation
-    signal ALU_opA_bypass: std_logic;
     -- register
     signal reg_read_a_mux : std_logic;         -- select the first register to output
     signal reg_read_b_mux : integer range 0 to 2;         -- select the first register to output
@@ -276,14 +280,13 @@ architecture  structural  of  SH2_CPU  is
     signal reg_read_b: integer range 15 downto 0;
     signal reg_read_a: integer range 15 downto 0;
     -- alu flags
-    signal ALU_C: std_logic;
-    signal ALU_V: std_logic;
-    signal ALU_S: std_logic;
-    signal ALU_Z: std_logic;
-    signal SR_T_in: std_logic;
-    signal SR_S_in: std_logic;
-    signal ALU_cout         : std_logic;
-    signal ALU_overflow         : std_logic;
+    -- signal SR_T_in: std_logic;
+    -- signal SR_S_in: std_logic;
+    -- signal ALU_cout         : std_logic;
+    -- signal ALU_overflow         : std_logic;
+    signal ALU_MACH_out : std_logic_vector(31 downto 0);  
+    signal ALU_T_out: std_logic;
+
 
 
 -- register saved for pipelining, first state are combinational
@@ -396,6 +399,8 @@ begin
     -- SR       to-do: add branch for sel=1!!!
             if (T_LD_sel = 0) then
                 SR_T <= '0';
+            elsif  (T_LD_sel = 1) then
+                SR_T <= ALU_T_out;
             elsif  (T_LD_sel = 2) then
                 SR_T <= reg_out_b(0);
             elsif  (T_LD_sel = 3) then
@@ -410,8 +415,10 @@ begin
                 MACH <= MACH;
             elsif (MACH_LD_sel = 1) then
                 MACH <= reg_out_b;
-            elsif (MACH_LD_sel = 1) then
+            elsif (MACH_LD_sel = 2) then
                 MACH <= (others => '0');
+            elsif (MACH_LD_sel = 3) then
+                MACH <= ALU_MACH_out;
             else
                 MACH <= (others => 'X');
             end if;
@@ -420,8 +427,10 @@ begin
                 MACL <= MACL;
             elsif (MACL_LD_sel = 1) then
                 MACL <= reg_out_b;
-            elsif (MACL_LD_sel = 1) then
+            elsif (MACL_LD_sel = 2) then
                 MACL <= (others => '0');
+            elsif (MACH_LD_sel = 3) then
+                MACH <= ALU_result_EX;
             else
                 MACL <= (others => 'X');
             end if;
@@ -454,11 +463,13 @@ begin
         alu_op_a_sel <= '0'; 
         alu_op_b_sel <= 0;
         adder_cin_sel <= 0;
+        adder_T_out_sel <= 0;
+        ALU_special_cmd <= '0';
+        MULCmd <= 0;
         AddSub <= '0';                       -- 1 for add, 0 for sub, always the bit2 or 1 when 0111!  
         ALUCmd <= "00";    -- ALU result select
         FCmd <= "0000";    -- F-Block operation
         SCmd <= "000";    -- shift operation
-        ALU_opA_bypass <= '0';
         -- register
         reg_read_a_mux <= '0';         -- select the first register to output
         reg_read_b_mux <= 0;         -- select the first register to output
@@ -466,20 +477,22 @@ begin
         reg_write_in_mux <= 0;         -- select the register to write
         reg_write_in_sel_regs <= 0;
         reg_write_en <= '0';
-        -- control register
-        LD_IR <= '0';
-        T_LD_SEL <= 0;
-        LD_S <= '0';
-        PC_LD_sel <= 0;         -- select the register to write, to-do: for unpipelined, increment in decode stage, 
-        -- but for pipelined, increment almost all the time, thus needs reset address to one previous first command!
-        MACL_LD_sel <= 0;
-        MACH_LD_sel <= 0;
-        LD_GBR <= '0';         -- select the register to write
-        PR_LD_sel <= 0;         -- select the register to write
+        -- ram rounting
         ram_EN <= '0';      -- 1 for enable, 0 for disable
         ram_PD <= '0';      -- 0 for program, 1 for data memory 
         ram_RW  <= '0';      -- 0 for read, 1 for write, force read if program
         ram_access_mode <= "00";       -- force WORD_ACCESS if program 
+        -- control register
+        PR_LD_sel <= 0;         -- select the register to write
+        LD_IR <= '0';
+        T_LD_sel <= 0;
+        LD_S <= '0';
+        LD_GBR <= '0';         -- select the register to write
+        PC_LD_sel <= 0;         -- select the register to write, to-do: for unpipelined, increment in decode stage, 
+        -- but for pipelined, increment almost all the time, thus needs reset address to one previous first command!
+        MACL_LD_sel <= 0;
+        MACH_LD_sel <= 0;
+
 
         if (state = "00") then
             ram_EN <= '1';
@@ -915,7 +928,7 @@ begin
                 end if;
 
             when "0111" =>
-            -- add imm, Rn
+            -- add #imm, Rn
                 if (state = "10") then
                     reg_read_a_mux <= '0';
                     alu_op_b_sel <= 1;
@@ -1170,19 +1183,21 @@ begin
                 ALUOpB  => reg_out_b,   -- second operand
                 immd   => opcode(7 downto 0),   -- immediate value (IR 7-0)
                 T     => SR_T,                       -- T flag 
+
                 op_a_sel  => alu_op_a_sel,
                 op_b_sel => alu_op_b_sel,
                 adder_cin_sel => adder_cin_sel,
+                adder_T_out_sel => adder_T_out_sel,
+                ALU_special_cmd => ALU_special_cmd,
+                MULCmd => MULCmd,
                 AddSub   => AddSub,                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
                 ALUCmd   => ALUCmd,    -- ALU result select
                 FCmd    => FCmd,    -- F-Block operation
                 SCmd    => SCmd,    -- shift operation
                 
                 Result  => ALU_result_EX,   -- ALU result
-                C   => ALU_C,                       -- carry out
-                V => ALU_V,                        -- overflow
-                S => ALU_S,                    -- sign
-                Z => ALU_Z                        -- zero
+                MACH_out => ALU_MACH_out,
+                T_out => ALU_T_out
             );
 
         ram_rounting_0: RAMRouting
