@@ -191,7 +191,7 @@ begin
         -- RAMbits0(0)(15 downto  0) <= "0000000000001000";
         -- RAMbits0(0)(31 downto 16) <= "0100000000000111";
 
-        load_ram(ram_temp, "test_mem_content/1.txt");
+        load_ram(ram_temp, "test_mem_content/2.txt");
         RAMbits0_init <= ram_temp;
         -- wait;
         -- RAMbits0 <= (others => (others => '-'));
@@ -201,7 +201,7 @@ begin
         
         wait for 5 us;
         ram_temp := RAMbits0;
-        compare_ram(ram_temp, "test_mem_content/1_out.txt");
+        compare_ram(ram_temp, "test_mem_content/2_out.txt");
         wait;
     end process;
 

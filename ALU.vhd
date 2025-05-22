@@ -12,8 +12,8 @@ entity ALU is
         immd   : in  std_logic_vector(7 downto 0);   -- immediate value (IR 7-0)
         T        : in      std_logic;                       -- T flag 
 
-        op_a_sel   : in    std_logic;
-        op_b_sel   : in    integer  range 0 to 2;
+        op_a_sel   : in    integer  range 0 to 2;
+        op_b_sel   : in    integer  range 0 to 3;
         adder_cin_sel   : in    integer  range 0 to 2;
         adder_T_out_sel : in    integer range 0 to 8;
 
@@ -84,13 +84,15 @@ architecture structural of ALU is
 begin
     
 
-    ALUOpA_internal <= ALUOpA when op_a_sel = '0' else
-                     (others => '0') when op_a_sel = '1' else
+    ALUOpA_internal <= ALUOpA when op_a_sel = 0 else
+                     (others => '0') when op_a_sel = 1 else
+                     ALUOpB when op_a_sel = 2 else
                     (others => 'X');
 
     ALUOpB_internal <= ALUOpB when op_b_sel = 0 else
                     (31 downto 8 => immd(7)) & immd when op_b_sel = 1 else
                     (31 downto 8 => '0') & immd when op_b_sel = 2 else
+                    (others => '1') when op_b_sel = 3 else
                     (others => 'X');
 
     Cin_internal <= Cin_add_sub when ALUCmd = ALUCmd_ADDER else

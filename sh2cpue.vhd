@@ -165,8 +165,8 @@ architecture  structural  of  SH2_CPU  is
             immd   : in  std_logic_vector(7 downto 0);   -- immediate value (IR 7-0)
             T        : in      std_logic;                       -- T flag 
 
-            op_a_sel   : in    std_logic;
-            op_b_sel   : in    integer  range 0 to 2;
+            op_a_sel   : in    integer  range 0 to 2;
+            op_b_sel   : in    integer  range 0 to 3;
             adder_cin_sel   : in    integer  range 0 to 2;
             adder_T_out_sel : in    integer range 0 to 8;
 
@@ -211,8 +211,8 @@ architecture  structural  of  SH2_CPU  is
     signal DispCutoff_D  :    integer  range 1 downto 0;       
     signal PrePostSel_D :      std_logic;
     -- ALU
-    signal alu_op_a_sel   : std_logic;
-    signal alu_op_b_sel: integer  range 0 to 2;
+    signal alu_op_a_sel   : integer  range 0 to 2;
+    signal alu_op_b_sel: integer  range 0 to 3;
     signal adder_cin_sel : integer  range 0 to 2;
     signal adder_T_out_sel : integer range 0 to 8;
     signal ALU_special_cmd : std_logic;
@@ -387,18 +387,18 @@ begin
             else
                 PC <= PC_reset_addr_debug;
                 state <= "00";
-                SR_S <= 'X';
-                SR_T <= 'X';
-                SR_I <= "XXXX";
+                SR_S <= '0';
+                SR_T <= '0';
+                SR_I <= "1111";
             end if;
                  
                 -- if (LD_S) then
                 --     SR_S <= '0';            
                 -- end if;
                 
-    -- SR       to-do: add branch for sel=1!!!
+    -- SR       
             if (T_LD_sel = 0) then
-                SR_T <= '0';
+                SR_T <= SR_T;
             elsif  (T_LD_sel = 1) then
                 SR_T <= ALU_T_out;
             elsif  (T_LD_sel = 2) then
@@ -429,8 +429,8 @@ begin
                 MACL <= reg_out_b;
             elsif (MACL_LD_sel = 2) then
                 MACL <= (others => '0');
-            elsif (MACH_LD_sel = 3) then
-                MACH <= ALU_result_EX;
+            elsif (MACL_LD_sel = 3) then
+                MACL <= ALU_result_EX;
             else
                 MACL <= (others => 'X');
             end if;
@@ -460,7 +460,7 @@ begin
         DispCutoff_D <= 0;       
         PrePostSel_D <= '0';
         -- ALU
-        alu_op_a_sel <= '0'; 
+        alu_op_a_sel <= 0; 
         alu_op_b_sel <= 0;
         adder_cin_sel <= 0;
         adder_T_out_sel <= 0;
@@ -797,8 +797,308 @@ begin
                         reg_write_in_mux <= 0;
                     end if;
                 
-                end if;
+                
+                elsif (opcode(3 downto 2) = "10") then
+                    case opcode(1 downto 0) is
+                    -- tst Rm, Rn
+                        when "00" =>
+                            if (state = "10") then
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+                                ALUCmd <= ALUCmd_FBLOCK;
+                                FCmd <= "1000";
+                                alu_op_a_sel <= 0;
+                                alu_op_b_sel <= 0;
+                                ALU_special_cmd <= '0';
+                                T_LD_sel <= 1;
+                            end if;
+                            
+                        when "01" => 
+                        -- and Rm, Rn
+                            if (state = "10") then
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+                                ALUCmd <= ALUCmd_FBLOCK;
+                                FCmd <= "1000";
+                                alu_op_a_sel <= 0;
+                                alu_op_b_sel <= 0;
+                                ALU_special_cmd <= '0';
+                            elsif (state = "11") then
+                                reg_write_addr_mux <= 0;
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 1;
+                            end if;
 
+                            
+                        when "10" => 
+                        -- xor Rm, Rn
+                            if (state = "10") then
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+                                ALUCmd <= ALUCmd_FBLOCK;
+                                FCmd <= "0110";
+                                alu_op_a_sel <= 0;
+                                alu_op_b_sel <= 0;
+                                ALU_special_cmd <= '0';
+                            elsif (state = "11") then
+                                reg_write_addr_mux <= 0;
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 1;
+                            end if;
+
+                    
+                        when "11" => 
+                        -- or Rm, Rn
+                            if (state = "10") then
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+                                ALUCmd <= ALUCmd_FBLOCK;
+                                FCmd <= "1110";
+                                alu_op_a_sel <= 0;
+                                alu_op_b_sel <= 0;
+                                ALU_special_cmd <= '0';
+                            elsif (state = "11") then
+                                reg_write_addr_mux <= 0;
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 1;
+                            end if;
+                        
+                        when others =>
+                            null;
+                    end case;
+                
+                elsif (opcode(3 downto 2) = "11") then
+                    case opcode(1 downto 0) is
+                        when "01" =>
+                        -- xtruct Rm, Rn
+                            if (state = "10") then
+                                reg_read_a_mux <= '1';
+                                reg_read_b_mux <= 0;
+
+                                ALU_special_cmd <= '1';
+                                ALUCmd <= SpecCmd_XTUCT;
+                            elsif (state = "11") then
+                                reg_write_addr_mux <= 0;
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 1;
+                            end if;
+
+
+                        when "10" =>
+                        -- mulu.w Rm, Rn
+                            if (state = "10") then
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+                                
+                                ALU_special_cmd <= '1';
+                                ALUCmd <= SpecCmd_MUL;
+                                MULCmd <= 3;
+
+                                MACL_LD_sel <= 3;
+                            end if;
+
+                        when "11" =>
+                        -- mulu.w Rm, Rn
+                            if (state = "10") then
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+                                
+                                ALU_special_cmd <= '1';
+                                ALUCmd <= SpecCmd_MUL;
+                                MULCmd <= 2;
+
+                                MACL_LD_sel <= 3;
+                            end if;
+
+                        when others =>
+                            null;
+                    end case;
+
+                end if;
+                       
+            when "0011" =>   
+                if (opcode(3 downto 2) = "00") then  
+                    case opcode(1 downto 0) is
+                        when "00" =>
+                        -- cmp/eq Rm, Rn
+                            if (state = "10") then
+                                T_LD_sel <= 1;
+                                adder_T_out_sel <= 1;
+                            end if;
+                            
+                        when "10" =>
+                        -- cmp/hs Rm, Rn
+                            if (state = "10") then
+                                T_LD_sel <= 2;
+                                adder_T_out_sel <= 1;
+                            end if;
+                            
+                        when "11" =>
+                        -- cmp/ge Rm, Rn
+                            if (state = "10") then
+                                T_LD_sel <= 5;
+                                adder_T_out_sel <= 1;
+                            end if;
+                        when others =>
+                            null;
+                    end case;
+                        
+                    if (state = "10") then
+                        reg_read_a_mux <= '0';
+                        reg_read_b_mux <= 1;
+                        adder_cin_sel <= 0;
+                        alu_op_a_sel <= 0;
+                        alu_op_b_sel <= 0;
+                        addSub <= '0';
+                        ALUCmd <= ALUCmd_ADDER;
+                        ALU_special_cmd <= '0';
+                    end if;
+
+                elsif (opcode(3 downto 2) = "01") then  
+                    case opcode(1 downto 0) is
+                        when "01" =>
+                        -- dmulu.l	Rm,Rn
+                            if (state = "10") then
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+                                
+                                ALU_special_cmd <= '1';
+                                ALUCmd <= SpecCmd_MUL;
+                                MULCmd <= 1;
+
+                                MACL_LD_sel <= 3;
+                                MACH_LD_sel <= 3;
+                            end if;
+
+                        when "10" =>
+                            if (state = "10") then
+                            -- cmp/hi Rm, Rn
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+
+                                adder_cin_sel <= 0;
+                                alu_op_a_sel <= 0;
+                                alu_op_b_sel <= 0;
+                                addSub <= '0';
+                                ALUCmd <= ALUCmd_ADDER;
+                                ALU_special_cmd <= '0';
+                                adder_T_out_sel <= 3;
+
+                                T_LD_sel <= 5;
+                            end if;
+
+                        when "11" =>
+                            if (state = "10") then
+                            -- cmp/gt Rm, Rn
+                                reg_read_a_mux <= '0';
+                                reg_read_b_mux <= 1;
+
+                                adder_cin_sel <= 0;
+                                alu_op_a_sel <= 0;
+                                alu_op_b_sel <= 0;
+                                addSub <= '0';
+                                ALUCmd <= ALUCmd_ADDER;
+                                ALU_special_cmd <= '0';
+                                adder_T_out_sel <= 4;
+
+                                T_LD_sel <= 5;
+                            end if;
+                          
+                        when others =>
+                            null;
+                    end case;
+
+                elsif (opcode(3 downto 2) = "10" or opcode(3 downto 2) = "11")
+                            and (opcode(1 downto 0) /= "01") then  
+                    case opcode(3 downto 0) is
+                        when "1000" =>
+                        -- sub Rm, Rn
+                            if (state = "10") then
+                                addSub <= '0';
+                                adder_cin_sel <= 0;
+                                T_LD_sel <= 0;
+                            end if;
+                            
+                        when "1010" =>
+                        -- subc Rm, Rn
+                            if (state = "10") then
+                                addSub <= '0';
+                                adder_cin_sel <= 1;
+                                T_LD_sel <= 1;
+                                adder_T_out_sel <= 2;
+                            end if;
+                            
+                        when "1011" =>
+                        -- subv Rm, Rn
+                            if (state = "10") then
+                                addSub <= '0';
+                                adder_cin_sel <= 0;
+                                T_LD_sel <= 1;
+                                adder_T_out_sel <= 6;
+                            end if;
+                        
+                            
+                        when "1100" =>
+                        -- add Rm, Rn
+                            if (state = "10") then
+                                addSub <= '1';
+                                adder_cin_sel <= 0;
+                                T_LD_sel <= 0;
+                            end if;
+                            
+                        when "1110" =>
+                        -- addc Rm, Rn
+                            if (state = "10") then
+                                addSub <= '1';
+                                adder_cin_sel <= 1;
+                                T_LD_sel <= 1;
+                                adder_T_out_sel <= 0;
+                            end if;
+                            
+                        when "1111" =>
+                        -- addv Rm, Rn
+                            if (state = "10") then
+                                addSub <= '1';
+                                adder_cin_sel <= 0;
+                                T_LD_sel <= 1;
+                                adder_T_out_sel <= 6;
+                            end if;
+
+                        when others =>
+                            null;
+                    end case;
+
+                    if (state = "10") then
+                        reg_read_a_mux <= '0';
+                        reg_read_b_mux <= 1;
+
+                        alu_op_a_sel <= 0;
+                        alu_op_b_sel <= 0;
+                        ALUCmd <= ALUCmd_ADDER;
+                        ALU_special_cmd <= '0';
+                    elsif (state = "11") then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
+
+
+                elsif (opcode(3 downto 0) = "1101") then
+                -- dmuls.l	Rm,Rn
+                    if (state = "10") then
+                        reg_read_a_mux <= '0';
+                        reg_read_b_mux <= 1;
+                        
+                        ALU_special_cmd <= '1';
+                        ALUCmd <= SpecCmd_MUL;
+                        MULCmd <= 0;
+
+                        MACL_LD_sel <= 3;
+                        MACH_LD_sel <= 3;
+                    end if;
+
+                end if;
+                  
             
             when "0101" =>
             -- mov.L @(disp:4, Rm), Rn
@@ -887,10 +1187,211 @@ begin
                         when others =>
                             null;
                     end case;
+                    
+                elsif (opcode(3 downto 0) = "0111") then 
+                -- not Rm, Rn
+                    if (state = "10") then
+                        reg_read_b_mux <= 1;
+
+                        alu_op_a_sel <= 1;
+                        alu_op_b_sel <= 0;
+                        ALUCmd <= ALUCmd_FBLOCK;
+                        FCmd <= "0101";
+                        ALU_special_cmd <= '0';
+                    elsif (state = "11") then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
+                    
+
+                elsif (opcode(3 downto 0) = "1001") then 
+                -- swap.W Rm, Rn
+                    if state = "10" then
+                        reg_read_a_mux <= '1';
+                        
+                        ALUCmd <= ALUCmd_SHIFT;
+                        SCmd <= SCmd_SWAP;
+                        ALU_special_cmd <= '0';
+                        ALU_op_a_sel <= 0;
+                    elsif state = "11" then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
+                    
+                    
+                elsif (opcode(3 downto 0) = "1010") then 
+                    -- negc Rm, Rn
+                    if state = "10" then
+                        reg_read_b_mux <= 1;
+                        
+                        ALU_op_a_sel <= 1;
+                        ALU_op_b_sel <= 0;
+                        ALUCmd <= ALUCmd_ADDER;
+                        addSub <= '0';
+                        ALU_special_cmd <= '0';
+                        adder_cin_sel <= 1;
+
+                        adder_T_out_sel <= 2;
+                        T_LD_sel <= 1;
+                    elsif state = "11" then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
+                    
+                    
+                elsif (opcode(3 downto 0) = "1011") then 
+                    -- neg Rm, Rn
+                    if state = "10" then
+                        reg_read_b_mux <= 1;
+                        
+                        ALU_op_a_sel <= 1;
+                        ALU_op_b_sel <= 0;
+                        ALUCmd <= ALUCmd_ADDER;
+                        addSub <= '0';
+                        ALU_special_cmd <= '0';
+                        adder_cin_sel <= 0;
+                    elsif state = "11" then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
+
+                    
+                elsif (opcode(3 downto 2) = "11") then 
+                    -- extU/S.B/W Rm, Rn
+                    if state = "10" then
+                        reg_read_a_mux <= '1';
+                        ALUCmd <= SpecCmd_EXT;
+                        ALU_special_cmd <= '1';
+                    elsif state = "11" then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
                 end if;
 
+
             when "0100" =>
-                if opcode(3 downto 0) = "1110" or opcode(3 downto 0) = "1010" then
+                if ((opcode(7 downto 4) = "0000") or (opcode(7 downto 4) = "0010")) and
+                ((opcode(3 downto 0) = "0000") or (opcode(3 downto 0) = "0001") or (opcode(3 downto 0) = "0100") or (opcode(3 downto 0) = "0101")) then
+                -- normal shifts Rn
+                    case opcode(7 downto 0) is
+                        when "00000000" =>  -- SHLL
+                            if state = "10" then
+                                SCmd <= SCmd_LSL;
+                            end if;
+                        when "00100000" =>  -- SHAL
+                            if state = "10" then
+                                SCmd <= SCmd_LSL;
+                            end if;                            
+                        when "00000001" =>  -- SHLR
+                            if state = "10" then
+                                SCmd <= SCmd_LSR;
+                            end if;
+                        when "00100001" =>  -- SHSR
+                            if state = "10" then
+                                SCmd <= SCmd_ASR;
+                            end if;
+                        when "00000100" =>  -- ROTL
+                            if state = "10" then
+                                SCmd <= SCmd_ROL;
+                            end if;
+                        when "00100100" =>  -- ROTCL
+                            if state = "10" then
+                                SCmd <= SCmd_RLC;
+                            end if;
+                        when "00000101" =>  -- ROTR
+                            if state = "10" then
+                                SCmd <= SCmd_ROR;
+                            end if;
+                        when "00100101" =>  -- ROTCR
+                            if state = "10" then
+                                SCmd <= SCmd_RRC;
+                            end if; 
+                        when others =>
+                            null;
+                    end case;  
+                    
+                    if state = "10" then
+                        reg_read_a_mux <= '0';
+                        ALUCmd <= ALUCmd_SHIFT;
+                        ALU_special_cmd <= '0';
+                        ALU_op_a_sel <= 0;
+
+                        T_LD_sel <= 1;
+                    elsif state = "11" then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
+                
+                elsif opcode(7 downto 0) = "00010000" then
+                -- dt Rn
+                    if state = "10" then
+                        reg_read_a_mux <= '0';
+
+                        ALUCmd <= ALUCmd_ADDER;
+                        ALU_special_cmd <= '0';
+                        ALU_op_a_sel <= 0;
+                        ALU_op_b_sel <= 3;
+                        adder_cin_sel <= 0;
+                        addSub <= '1';
+
+                        adder_T_out_sel <= 1;
+                        T_LD_sel <= 1;
+                    elsif state = "11" then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
+                    
+                elsif opcode(7 downto 0) = "00010001" then
+                -- cmp/pl Rn
+                    if state = "10" then
+                        reg_read_b_mux <= 0;
+
+                        ALUCmd <= ALUCmd_ADDER;
+                        ALU_op_a_sel <= 1;
+                        ALU_op_b_sel <= 0;
+                        adder_cin_sel <= 0;
+                        addSub <= '1';
+
+                        adder_T_out_sel <= 7;
+                        T_LD_sel <= 1;
+                    end if;
+                    
+                elsif opcode(7 downto 0) = "00010101" then
+                -- cmp/pz Rn
+                    if state = "10" then
+                        reg_read_b_mux <= 0;
+
+                        ALUCmd <= ALUCmd_ADDER;
+                        ALU_op_a_sel <= 1;
+                        ALU_op_b_sel <= 0;
+                        adder_cin_sel <= 0;
+                        addSub <= '1';
+
+                        adder_T_out_sel <= 8;
+                        T_LD_sel <= 1;
+                    end if;
+
+                elsif ((opcode(3 downto 0) = "1000") or (opcode(3 downto 0) = "1001")) and 
+                ((opcode(7 downto 4) = "0000") or (opcode(7 downto 4) = "0001") or (opcode(7 downto 4) = "0010")) then
+                -- SHLL/SHLRb Rn
+                    if state = "10" then
+                        reg_read_a_mux <= '0';
+                        ALUCmd <= SpecCmd_SHIFT;
+                        ALU_special_cmd <= '1';
+                    elsif state = "11" then
+                        reg_write_addr_mux <= 0;
+                        reg_write_en <= '1';
+                        reg_write_in_mux <= 1;
+                    end if;
+
+                elsif opcode(3 downto 0) = "1110" or opcode(3 downto 0) = "1010" then
                     case opcode(7 downto 2) is
                         -- LDC/S Rm
                         when "000010" =>
@@ -932,7 +1433,7 @@ begin
                 if (state = "10") then
                     reg_read_a_mux <= '0';
                     alu_op_b_sel <= 1;
-                    alu_op_a_sel <= '0';
+                    alu_op_a_sel <= 0;
                     adder_cin_sel <= 0;
                     ALUCmd <= ALUCmd_ADDER;
                     addSub <= '1';
@@ -942,6 +1443,22 @@ begin
                     reg_write_addr_mux <= 0;
                 end if;
 
+            when "1000" =>
+                if (opcode(11 downto 8) = "1000") then
+                -- cmp/eq #imm, R0
+                    if (state = "10") then
+                        reg_read_b_mux <= 2;
+
+                        alu_op_a_sel <= 2;
+                        alu_op_b_sel <= 1;
+                        adder_cin_sel <= 0;
+                        ALUCmd <= ALUCmd_ADDER;
+                        addSub <= '0';
+
+                        adder_T_out_sel <= 1;
+                        T_LD_sel <= 1;
+                    end if;
+                end if;
                 
 
             when "1001" =>
@@ -1047,8 +1564,77 @@ begin
                         reg_write_addr_mux <= 2;
                     end if;
 
-                end if;
 
+                elsif (opcode(11 downto 10) = "10") then
+                    case opcode(9 downto 8) is
+                    -- tst #imm, Rn
+                        when "00" =>
+                            if (state = "10") then
+                                reg_read_b_mux <= 2;
+
+                                ALUCmd <= ALUCmd_FBLOCK;
+                                FCmd <= "1000";
+                                alu_op_a_sel <= 2;
+                                alu_op_b_sel <= 2;
+                                ALU_special_cmd <= '0';
+                                T_LD_sel <= 1;
+                            end if;
+                            
+                        when "01" => 
+                        -- and #imm, Rn
+                            if (state = "10") then
+                                reg_read_b_mux <= 2;
+                                
+                                ALUCmd <= ALUCmd_FBLOCK;
+                                FCmd <= "1000";
+                                alu_op_a_sel <= 2;
+                                alu_op_b_sel <= 2;
+                                ALU_special_cmd <= '0';
+                            elsif (state = "11") then
+                                reg_write_addr_mux <= 2;
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 1;
+                            end if;
+
+                            
+                        when "10" => 
+                        -- xor #imm, Rn
+                            if (state = "10") then
+                                reg_read_b_mux <= 2;
+                                
+                                ALUCmd <= ALUCmd_FBLOCK;
+                                FCmd <= "0110";
+                                alu_op_a_sel <= 2;
+                                alu_op_b_sel <= 2;
+                                ALU_special_cmd <= '0';
+                            elsif (state = "11") then
+                                reg_write_addr_mux <= 2;
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 1;
+                            end if;
+
+                    
+                        when "11" => 
+                        -- or #imm, Rn
+                            if (state = "10") then
+                                reg_read_b_mux <= 2;
+                                
+                                ALUCmd <= ALUCmd_FBLOCK;
+                                FCmd <= "1110";
+                                alu_op_a_sel <= 2;
+                                alu_op_b_sel <= 2;
+                                ALU_special_cmd <= '0';
+                            elsif (state = "11") then
+                                reg_write_addr_mux <= 2;
+                                reg_write_en <= '1';
+                                reg_write_in_mux <= 1;
+                            end if;
+                        
+                        when others =>
+                            null;
+                    end case;
+
+                end if;
 
             -- mov.B/W/L
                 
@@ -1074,7 +1660,7 @@ begin
             when "1110" =>
                 if (state = "10") then
                     alu_op_b_sel <= 1;
-                    alu_op_a_sel <= '1';
+                    alu_op_a_sel <= 1;
                     FCmd <= "1010";
                     ALUCmd <= ALUCmd_FBLOCK;
                 elsif (state = "11") then
