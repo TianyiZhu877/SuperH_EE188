@@ -235,13 +235,14 @@ architecture  structural  of  SH2_CPU  is
     signal ram_access_mode : std_logic_vector(1 downto 0);       -- force WORD_ACCESS if program 
     -- control register
     -- signal LD_PC: std_logic;
-    signal PR_LD_sel: integer range 0 to 2;
+    signal PR_LD_sel: integer range 0 to 3;
     signal LD_IR: std_logic;
     signal T_LD_sel: integer range 0 to 4;
     signal LD_S: std_logic;                             -- unused
     signal LD_SR_I: std_logic;                          -- unused
     signal LD_GBR: std_logic;
     signal PC_LD_sel : integer range 0 to 3;         -- select the register to write
+    signal PC_conditional_sel       : integer range 0 to 2; 
     signal MACH_LD_sel, MACL_LD_sel : integer range 0 to 3;         -- select the register to write
     -- signal GBR_LD_sel : integer range 0 to 2;         -- select the register to write
 
@@ -257,14 +258,16 @@ architecture  structural  of  SH2_CPU  is
     signal MACH, MACL: std_logic_vector(31 downto 0);
 -- pipeline registers
     signal opcode: std_logic_vector(15 downto 0);
-    signal PC_EX: std_logic_vector(31 downto 0);   -- address for a program currently at executiong stage
+    -- signal PC_EX: std_logic_vector(31 downto 0);   -- address for a program currently at executiong stage
 
 
 -- interconnect signals
     signal program_address      : std_logic_vector(31 downto 0);   -- program address bus
     signal ram_data_address         : std_logic_vector(31 downto 0);   -- data address bus
     signal program_addr_src_out : std_logic_vector(31 downto 0);
-    signal PC_pre                : std_logic_vector(31 downto 0);
+    signal PC_EX_p4             : std_logic_vector(31 downto 0);
+    signal pc_ld_actual                : integer range 0 to 3;
+    signal PC_conditional       : std_logic;
     -- signal write_data : std_logic_vector(31 downto 0);
     -- signal read_data  : std_logic_vector(31 downto 0);
     signal ram_data_read : std_logic_vector(31 downto 0);
@@ -298,6 +301,8 @@ architecture  structural  of  SH2_CPU  is
 -- decode stage generated signals
     signal reg_out_a_WB:        std_logic_vector(31 downto 0);
     signal reg_out_b_WB:        std_logic_vector(31 downto 0);
+-- PC states
+    signal PC_pre                : std_logic_vector(31 downto 0);
 
 -- exceptions from components
     signal ram_exception : std_logic;    
@@ -318,11 +323,22 @@ begin
 
 
 -- PC increment
-    PC_pre <= PC when PC_LD_sel = 0 else
-            std_logic_vector(unsigned(PC)+2)  when PC_LD_sel = 1  else
-            program_addr_src_out  when PC_LD_sel = 2  else
-            PR  when PC_LD_sel = 3  else
+    PC_pre <= PC when PC_LD_actual = 0 else
+            std_logic_vector(unsigned(PC)+2)  when PC_LD_actual = 1  else
+            program_addr_src_out  when PC_LD_actual = 2  else
+            PR  when PC_LD_actual = 3  else
             PC_reset_addr_debug;
+
+    PC_conditional <= '0' when PC_conditional_sel = 0 else
+                    (not SR_T) when PC_conditional_sel = 1 else
+                    SR_T when PC_conditional_sel = 2 else
+                    'X';
+
+    PC_LD_actual <= PC_LD_sel when PC_conditional = '0' else
+                    1 when PC_conditional = '1' else
+                    0;
+
+    PC_EX_p4 <= std_logic_vector(unsigned(PC) + 4);  -- to-do: change RHS to PC_EX
 
     process(clk) begin
         if rising_edge(clk) then
@@ -352,6 +368,8 @@ begin
                     PR <= reg_out_b;
                 elsif (PR_LD_sel = 2) then
                     PR <= PC;
+                elsif (PR_LD_sel = 3) then
+                    PR <= PC_EX_p4;
                 else
                     PR <= (others => 'X');
                 end if;
@@ -382,7 +400,7 @@ begin
 
     -- pipelining register update
                 PC <= PC_pre;
-                PC_EX <= PC;
+                -- PC_EX <= PC;
 
             else
                 PC <= PC_reset_addr_debug;
@@ -488,6 +506,7 @@ begin
         T_LD_sel <= 0;
         LD_S <= '0';
         LD_GBR <= '0';         -- select the register to write
+        PC_conditional_sel <= 0;
         PC_LD_sel <= 0;         -- select the register to write, to-do: for unpipelined, increment in decode stage, 
         -- but for pipelined, increment almost all the time, thus needs reset address to one previous first command!
         MACL_LD_sel <= 0;
@@ -1712,7 +1731,7 @@ begin
         -- inputs for base addr
             SrcSel      => SrcSel_D,       -- singal for selection 
 -- to-do: switch this back to PC_EX for pipeline !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            PC          => PC_EX,  -- to-do: might be changed later
+            PC          => PC_EX_p4,  -- to-do: might be changed later
             Rn          => reg_out_a,   -- selected when 1
             GBR         => GBR,   -- selected when 2
         -- inputs for offset
@@ -1734,7 +1753,7 @@ begin
             port map(
             -- inputs for base addr
                 SrcSel => SrcSel_P,       -- singal for selection 
-                PC  => PC_pre,  -- selected when 0
+                PC  => PC_EX_p4,  -- to-do: change this to pc_ex when pipelined
             -- inputs for offset
                 OffsetSel => OffsetSel_P,       -- singal for selection 
                 Rm  => reg_out_b,  -- selected when 0

@@ -66,7 +66,7 @@ architecture  behavioral  of  dataAddrUnit  is
 
 -- imtermeidate after cutting off bits of disp:
     signal disp_internal: std_logic_vector(11 downto 0);   
-    signal PC_plus_4: std_logic_vector(31 downto 0);        
+    -- signal PC_plus_4: std_logic_vector(31 downto 0);        
 
 -- inputs to general mau:
     signal AddrSrc: std_logic_array(4 downto 0)(31 downto 0);   
@@ -78,12 +78,12 @@ begin
                         (11 downto 4 => Disp(3)) & Disp(3 downto 0)  when DispCutoff = 0  else
                         (others => 'X');
 
-    PC_plus_4 <= std_logic_vector(unsigned(PC) + 4);
+    -- PC_plus_4 <= std_logic_vector(unsigned(PC) + 4);
     process (all) begin
     -- for base addr selections, selected when SrcSel:
         AddrSrc(0) <= Rn;                       -- 0    Rn
-        AddrSrc(1) <= PC_plus_4;                -- 1
-        AddrSrc(2) <= PC_plus_4(31 downto 2) & "00";                -- 2
+        AddrSrc(1) <= PC;                -- 1
+        AddrSrc(2) <= PC(31 downto 2) & "00";                -- 2
         AddrSrc(3) <= GBR;                      -- 3
         AddrSrc(4) <= (others => '0');                      -- 4
 
