@@ -220,7 +220,7 @@ begin
             when 2 => 
                 adder_T_out <= not C;
             when 3 => 
-                adder_T_out <= (not C) and (not Z);
+                adder_T_out <= C and (not Z);
             when 4 => 
                 adder_T_out <= (not(S xor V)) and (not Z);
             

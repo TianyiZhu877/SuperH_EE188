@@ -191,7 +191,7 @@ begin
         -- RAMbits0(0)(15 downto  0) <= "0000000000001000";
         -- RAMbits0(0)(31 downto 16) <= "0100000000000111";
 
-        load_ram(ram_temp, "test_mem_content/2.txt");
+        load_ram(ram_temp, "test_mem_content/3.txt");
         RAMbits0_init <= ram_temp;
         -- wait;
         -- RAMbits0 <= (others => (others => '-'));
@@ -199,9 +199,9 @@ begin
         -- report "\n***********\nFinal RAMbits0(0): " & to_hstring(RAMbits0(0)) & "    \n***********\n";
         -- report "\n***********\nFinal RAMbits0(8): " & to_hstring(RAMbits0(8)) & "    \n***********\n";
         
-        wait for 5 us;
+        wait for 9 us;
         ram_temp := RAMbits0;
-        compare_ram(ram_temp, "test_mem_content/2_out.txt");
+        compare_ram(ram_temp, "test_mem_content/3_out.txt");
         wait;
     end process;
 

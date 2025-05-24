@@ -14,7 +14,7 @@ use work.array_type_pkg.all;
 
 -- A more detailed diagram could be found in memory_unit_structure.png
 
-entity  dataAddrUnit  is
+entity  AddrUnit  is
     port (
     -- inputs for base addr
         SrcSel      : in    integer  range 4 downto 0;       -- singal for selection 
@@ -23,13 +23,14 @@ entity  dataAddrUnit  is
         GBR         : in     std_logic_vector(31 downto 0);   -- selected when 2
 
     -- inputs for offset
-        OffsetSel   : in    integer  range 4 downto 0;       -- singal for selection 
+        OffsetSel   : in    integer  range 5 downto 0;       -- singal for selection 
         R0          : in     std_logic_vector(31 downto 0);  -- selected when 0
+        Rm          : in     std_logic_vector(31 downto 0);  -- selected when 0
         IncDecVal   :  in     std_logic_vector(3 downto 0);
         -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
-        Disp        : in     std_logic_vector(7 downto 0);  
+        Disp        : in     std_logic_vector(11 downto 0);  
         -- choose to use last 0 (4 bits), 1 (8 bits) of disp
-        DispCutoff  : in    integer  range 1 downto 0;       
+        DispCutoff  : in    integer  range 3 downto 0;       
 
     -- signals from control unit, directly connect to the wrapped general mau
         PrePostSel : in      std_logic;
@@ -38,10 +39,10 @@ entity  dataAddrUnit  is
         Address    : out     std_logic_vector(31 downto 0);
         AddrSrcOut : buffer  std_logic_vector(31 downto 0)
     );
-end dataAddrUnit;
+end AddrUnit;
 
 
-architecture  behavioral  of  dataAddrUnit  is
+architecture  behavioral  of  AddrUnit  is
 
 -- the general memory component
     component  MemUnit
@@ -65,17 +66,18 @@ architecture  behavioral  of  dataAddrUnit  is
     end component;
 
 -- imtermeidate after cutting off bits of disp:
-    signal disp_internal: std_logic_vector(11 downto 0);   
-    -- signal PC_plus_4: std_logic_vector(31 downto 0);        
+    signal disp_internal: std_logic_vector(31 downto 0);        
 
 -- inputs to general mau:
     signal AddrSrc: std_logic_array(4 downto 0)(31 downto 0);   
-    signal AddrOff: std_logic_array(4 downto 0)(31 downto 0);
+    signal AddrOff: std_logic_array(5 downto 0)(31 downto 0);
 
 begin
     -- cutting off higher bits by DispCutoff
-    disp_internal <=    (11 downto 8 => Disp(7)) & Disp  when DispCutoff = 1  else
-                        (11 downto 4 => Disp(3)) & Disp(3 downto 0)  when DispCutoff = 0  else
+    disp_internal <=    (31 downto 4 => '0') & Disp(3 downto 0)  when DispCutoff = 0  else
+                        (31 downto 8 => '0') & Disp(7 downto 0)  when DispCutoff = 1  else
+                        (31 downto 8 => Disp(7)) & Disp(7 downto 0)  when DispCutoff = 2  else
+                        (31 downto 12 => Disp(11)) & Disp  when DispCutoff = 3  else
                         (others => 'X');
 
     -- PC_plus_4 <= std_logic_vector(unsigned(PC) + 4);
@@ -90,15 +92,16 @@ begin
     -- inputs for offset selection, selected when OffsetSel:
         AddrOff(0) <= R0;                               -- 0    R0
         AddrOff(1) <= (31 downto 4 => IncDecVal(3)) & IncDecVal;                  -- 1 inc dec val                              
-        AddrOff(2) <= (31 downto 12 => disp_internal(11)) & disp_internal;  -- 2 (disp)
-        AddrOff(3) <= (31 downto 13 => disp_internal(11)) & disp_internal & '0';    -- 3 (disp << 1)
-        AddrOff(4) <= (31 downto 14 => disp_internal(11)) & disp_internal & "00";   -- 4 (disp << 2)
+        AddrOff(2) <= disp_internal;  -- 2 (disp)
+        AddrOff(3) <= disp_internal(30 downto 0) & '0';    -- 3 (disp << 1)
+        AddrOff(4) <= disp_internal(29 downto 0) & "00";   -- 4 (disp << 2)
+        AddrOff(5) <= Rm;   -- 4 (disp << 2)
     end process;
 
     mau_general: MemUnit
         generic map (
             srcCnt   => 5,
-            offsetCnt => 5,
+            offsetCnt => 6,
             wordsize => 32               -- 32-bit address bus
         )
         port map (

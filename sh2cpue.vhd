@@ -115,48 +115,33 @@ architecture  structural  of  SH2_CPU  is
         );
     end component;
 
-    component  dataAddrUnit
+    component  AddrUnit
         port (
         -- inputs for base addr
             SrcSel      : in    integer  range 4 downto 0;       -- singal for selection 
             PC          : in     std_logic_vector(31 downto 0);  -- selected when 0
             Rn          : in     std_logic_vector(31 downto 0);   -- selected when 1
             GBR         : in     std_logic_vector(31 downto 0);   -- selected when 2
+
         -- inputs for offset
-            OffsetSel   : in    integer  range 4 downto 0;       -- singal for selection 
+            OffsetSel   : in    integer  range 5 downto 0;       -- singal for selection 
             R0          : in     std_logic_vector(31 downto 0);  -- selected when 0
+            Rm          : in     std_logic_vector(31 downto 0);  -- selected when 0
             IncDecVal   :  in     std_logic_vector(3 downto 0);
             -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
-            Disp        : in     std_logic_vector(7 downto 0);  
+            Disp        : in     std_logic_vector(11 downto 0);  
             -- choose to use last 0 (4 bits), 1 (8 bits) of disp
-            DispCutoff  : in    integer  range 1 downto 0;       
+            DispCutoff  : in    integer  range 3 downto 0;       
+
         -- signals from control unit, directly connect to the wrapped general mau
             PrePostSel : in      std_logic;
+        
         -- outputs, directly connects to the wrapped general mau output
             Address    : out     std_logic_vector(31 downto 0);
             AddrSrcOut : buffer  std_logic_vector(31 downto 0)
         );
     end component;
 
-    component  programAddrUnit
-        port (
-        -- inputs for base addr
-            SrcSel      : in    integer  range 1 downto 0;       -- singal for selection 
-            PC          : in     std_logic_vector(31 downto 0);  -- selected when 0
-        -- inputs for offset
-            OffsetSel   : in    integer  range 2 downto 0;       -- singal for selection 
-            Rm          : in     std_logic_vector(31 downto 0);  -- selected when 0
-            -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
-            Disp        : in     std_logic_vector(11 downto 0);  
-            -- choose to use last 0 (4 bits), 1 (8 bits) of disp
-            DispCutoff  : in    integer  range 1 downto 0;       
-        -- signals from control unit, directly connect to the wrapped general mau
-            PrePostSel : in      std_logic;
-        -- outputs, directly connects to the wrapped general mau output
-            Address    : out     std_logic_vector(31 downto 0);
-            AddrSrcOut : buffer  std_logic_vector(31 downto 0)
-        );
-    end component;
 
     component ALU
         port (
@@ -201,15 +186,11 @@ architecture  structural  of  SH2_CPU  is
     
 -- control signals
     -- memory
-    signal SrcSel_P      :    integer  range 1 downto 0;       -- singal for selection 
-    signal OffsetSel_P   :    integer  range 2 downto 0;       -- singal for selection 
-    signal DispCutoff_P  :    integer  range 1 downto 0;       
-    signal PrePostSel_P :      std_logic;
-    signal SrcSel_D      :    integer  range 4 downto 0;       -- singal for selection 
-    signal IncDecVal_D   :     std_logic_vector(3 downto 0);
-    signal OffsetSel_D   :    integer  range 4 downto 0;       -- singal for selection 
-    signal DispCutoff_D  :    integer  range 1 downto 0;       
-    signal PrePostSel_D :      std_logic;
+    signal SrcSel      :    integer  range 4 downto 0;       -- singal for selection 
+    signal IncDecVal   :     std_logic_vector(3 downto 0);
+    signal OffsetSel   :    integer  range 5 downto 0;       -- singal for selection 
+    signal DispCutoff  :    integer  range 3 downto 0;       
+    signal PrePostSel :      std_logic;
     -- ALU
     signal alu_op_a_sel   : integer  range 0 to 2;
     signal alu_op_b_sel: integer  range 0 to 3;
@@ -264,7 +245,6 @@ architecture  structural  of  SH2_CPU  is
 -- interconnect signals
     signal program_address      : std_logic_vector(31 downto 0);   -- program address bus
     signal ram_data_address         : std_logic_vector(31 downto 0);   -- data address bus
-    signal program_addr_src_out : std_logic_vector(31 downto 0);
     signal PC_EX_p4             : std_logic_vector(31 downto 0);
     signal pc_ld_actual                : integer range 0 to 3;
     signal PC_conditional       : std_logic;
@@ -296,8 +276,8 @@ architecture  structural  of  SH2_CPU  is
 -- execute stage generated signals
     signal ALU_result_EX         : std_logic_vector(31 downto 0);
     signal ALU_result_WB         : std_logic_vector(31 downto 0);
-    signal data_addr_writeback_EX  : std_logic_vector(31 downto 0);
-    signal data_addr_writeback_WB  : std_logic_vector(31 downto 0);
+    signal addr_writeback_EX  : std_logic_vector(31 downto 0);
+    signal addr_writeback_WB  : std_logic_vector(31 downto 0);
 -- decode stage generated signals
     signal reg_out_a_WB:        std_logic_vector(31 downto 0);
     signal reg_out_b_WB:        std_logic_vector(31 downto 0);
@@ -325,7 +305,7 @@ begin
 -- PC increment
     PC_pre <= PC when PC_LD_actual = 0 else
             std_logic_vector(unsigned(PC)+2)  when PC_LD_actual = 1  else
-            program_addr_src_out  when PC_LD_actual = 2  else
+            addr_writeback_EX  when PC_LD_actual = 2  else
             PR  when PC_LD_actual = 3  else
             PC_reset_addr_debug;
 
@@ -395,7 +375,7 @@ begin
                 ALU_result_WB <= ALU_result_EX;
                 -- ALU_cout_1 <= ALU_cout_0;
                 -- ALU_overflow_1 <= ALU_overflow_0;
-                data_addr_writeback_WB <= data_addr_writeback_EX;
+                addr_writeback_WB <= addr_writeback_EX;
 
 
     -- pipelining register update
@@ -468,15 +448,11 @@ begin
 -- decoding
     process(all) begin
         
-        SrcSel_P <= 0;       -- singal for selection 
-        OffsetSel_P <= 0;       -- singal for selection 
-        DispCutoff_P <= 0;       
-        PrePostSel_P <= '0';
-        SrcSel_D <= 0;       -- singal for selection 
-        IncDecVal_D <= "0000";
-        OffsetSel_D <= 0;       -- singal for selection 
-        DispCutoff_D <= 0;       
-        PrePostSel_D <= '0';
+        SrcSel <= 0;       -- singal for selection 
+        IncDecVal <= "0000";
+        OffsetSel <= 0;       -- singal for selection 
+        DispCutoff <= 0;       
+        PrePostSel <= '0';
         -- ALU
         alu_op_a_sel <= 0; 
         alu_op_b_sel <= 0;
@@ -552,14 +528,34 @@ begin
                         reg_write_addr_mux <= 0;
                     end if;
 
-                        
+                elsif (opcode(3 downto 0) = "0011") then
+                    if (opcode(7 downto 4) = "0000") then
+                    -- bsrf Rm
+                        if (state = "10") then
+                            PR_LD_sel <= 3;
+                            PC_LD_sel <= 2;
+                        end if;
+                    elsif (opcode(7 downto 4) = "0010") then
+                    -- braf Rm
+                        if (state = "10") then
+                            PR_LD_sel <= 0;
+                            PC_LD_sel <= 2;
+                        end if;
+                    end if;
+
+                    if (state = "10") then
+                        reg_read_b_mux <= 0;
+                        Srcsel <= 1;
+                        OffsetSel <= 5;
+                    end if;
+
                 elsif (opcode(3 downto 0) = "0100") then 
                 -- MOV.B Rm, @(R0, Rn)
                     if (state = "10") then
                         reg_read_a_mux <= '0';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 0;
-                        PrePostSel_D <= '0';
+                        SrcSel <= 0;
+                        OffsetSel <= 0;
+                        PrePostSel <= '0';
                         ram_RW <= '1';
                         ram_PD <= '1';
                         ram_EN <= '1';
@@ -572,9 +568,9 @@ begin
                 -- MOV.W Rm, @(R0, Rn)
                     if (state = "10") then
                         reg_read_a_mux <= '0';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 0;
-                        PrePostSel_D <= '0';
+                        SrcSel <= 0;
+                        OffsetSel <= 0;
+                        PrePostSel <= '0';
                         ram_RW <= '1';
                         ram_PD <= '1';
                         ram_EN <= '1';
@@ -586,9 +582,9 @@ begin
                 -- MOV.L Rm, @(R0, Rn)
                     if (state = "10") then
                         reg_read_a_mux <= '0';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 0;
-                        PrePostSel_D <= '0';
+                        SrcSel <= 0;
+                        OffsetSel <= 0;
+                        PrePostSel <= '0';
                         ram_RW <= '1';
                         ram_PD <= '1';
                         ram_EN <= '1';
@@ -627,9 +623,9 @@ begin
                 -- MOV.B @(R0, Rn), Rm 
                     if (state = "10") then
                         reg_read_a_mux <= '1';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 0;
-                        PrePostSel_D <= '0';
+                        SrcSel <= 0;
+                        OffsetSel <= 0;
+                        PrePostSel <= '0';
                         ram_RW <= '0';
                         ram_PD <= '1';
                         ram_EN <= '1';
@@ -644,9 +640,9 @@ begin
                 -- MOV.W @(R0, Rn), Rm 
                     if (state = "10") then
                         reg_read_a_mux <= '1';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 0;
-                        PrePostSel_D <= '0';
+                        SrcSel <= 0;
+                        OffsetSel <= 0;
+                        PrePostSel <= '0';
                         ram_RW <= '0';
                         ram_PD <= '1';
                         ram_EN <= '1';
@@ -661,9 +657,9 @@ begin
                 -- MOV.L @(R0, Rn), Rm 
                     if (state = "10") then
                         reg_read_a_mux <= '1';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 0;
-                        PrePostSel_D <= '0';
+                        SrcSel <= 0;
+                        OffsetSel <= 0;
+                        PrePostSel <= '0';
                         ram_RW <= '0';
                         ram_PD <= '1';
                         ram_EN <= '1';
@@ -708,12 +704,22 @@ begin
                     end if;
 
                 elsif (opcode(3 downto 0) = "1011") then 
-                    if (opcode(7 downto 4) = "0001") then
+                    case opcode(7 downto 4) is
+                        when "0000" =>
+                        -- rts
+                            if (state = "10") then
+                                PC_LD_sel <= 3;
+                            end if;
+
+                        when "0001" =>
                         -- SLEEP   0000 0000 0001 1011
-                        if (state = "10") then
-                            PC_LD_sel <= 0;
-                        end if;
-                    end if;
+                            if (state = "10") then
+                                PC_LD_sel <= 0;
+                            end if;
+                        
+                        when others =>
+                            null;
+                    end case;
                 end if;
 
             when "0001" => 
@@ -721,10 +727,10 @@ begin
                 if (state = "10") then
                     reg_read_b_mux <= 1;
                     reg_read_a_mux <= '0';
-                    SrcSel_D <= 0;
-                    DispCutoff_D <= 0;
-                    OffsetSel_D <= 4;
-                    PrepostSel_D <= '0';
+                    SrcSel <= 0;
+                    DispCutoff <= 0;
+                    OffsetSel <= 4;
+                    PrePostSel <= '0';
 
                     ram_access_mode <= LONG_ACCESS;
                     ram_RW <= '1';
@@ -759,10 +765,10 @@ begin
                     if (state = "10") then
                         reg_read_b_mux <= 1;
                         reg_read_a_mux <= '0';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 1;
-                        IncDecVal_D <= "0000";
-                        PrepostSel_D <= '0';
+                        SrcSel <= 0;
+                        OffsetSel <= 1;
+                        IncDecVal <= "0000";
+                        PrePostSel <= '0';
 
                         ram_RW <= '1';
                         ram_PD <= '1';
@@ -774,7 +780,7 @@ begin
                     case opcode(1 downto 0) is 
                         when "00" =>
                             if (state = "10") then
-                                IncDecVal_D <= "1111";
+                                IncDecVal <= "1111";
                                 ram_access_mode <= BYTE_ACCESS;
                                 ram_EN <= '1';
                             elsif (state = "11") then
@@ -783,7 +789,7 @@ begin
                         
                         when "01" =>
                             if (state = "10") then
-                                IncDecVal_D <= "1110";
+                                IncDecVal <= "1110";
                                 ram_access_mode <= WORD_ACCESS;
                                 ram_EN <= '1';
                             elsif (state = "11") then
@@ -792,7 +798,7 @@ begin
                         
                         when "10" =>
                             if (state = "10") then
-                                IncDecVal_D <= "1100";
+                                IncDecVal <= "1100";
                                 ram_access_mode <= LONG_ACCESS;
                                 ram_EN <= '1';
                             elsif (state = "11") then
@@ -805,9 +811,9 @@ begin
                     if (state = "10") then
                         reg_read_b_mux <= 1;
                         reg_read_a_mux <= '0';
-                        SrcSel_D <= 0;
-                        OffsetSel_D <= 1;
-                        PrepostSel_D <= '0';
+                        SrcSel <= 0;
+                        OffsetSel <= 1;
+                        PrePostSel <= '0';
 
                         ram_RW <= '1';
                         ram_PD <= '1';
@@ -948,15 +954,15 @@ begin
                         when "10" =>
                         -- cmp/hs Rm, Rn
                             if (state = "10") then
-                                T_LD_sel <= 2;
-                                adder_T_out_sel <= 1;
+                                T_LD_sel <= 1;
+                                adder_T_out_sel <= 0;
                             end if;
                             
                         when "11" =>
                         -- cmp/ge Rm, Rn
                             if (state = "10") then
-                                T_LD_sel <= 5;
-                                adder_T_out_sel <= 1;
+                                T_LD_sel <= 1;
+                                adder_T_out_sel <= 5;
                             end if;
                         when others =>
                             null;
@@ -1003,7 +1009,7 @@ begin
                                 ALU_special_cmd <= '0';
                                 adder_T_out_sel <= 3;
 
-                                T_LD_sel <= 5;
+                                T_LD_sel <= 1;
                             end if;
 
                         when "11" =>
@@ -1020,7 +1026,7 @@ begin
                                 ALU_special_cmd <= '0';
                                 adder_T_out_sel <= 4;
 
-                                T_LD_sel <= 5;
+                                T_LD_sel <= 1;
                             end if;
                           
                         when others =>
@@ -1122,10 +1128,10 @@ begin
             when "0101" =>
             -- mov.L @(disp:4, Rm), Rn
                 if (state = "10") then
-                    SrcSel_D <= 0;
-                    DispCutoff_D <= 0;
-                    OffsetSel_D <= 4;
-                    PrepostSel_D <= '0';
+                    SrcSel <= 0;
+                    DispCutoff <= 0;
+                    OffsetSel <= 4;
+                    PrePostSel <= '0';
 
                     ram_access_mode <= LONG_ACCESS;
                     ram_RW <= '0';
@@ -1140,16 +1146,16 @@ begin
 
             when "0110" =>
                 if (opcode(3 downto 2) = "00") then 
-                -- move @Rm/Rm, Rn
+                -- mov @Rm, Rn
                     case opcode(1 downto 0) is
                         when "00" =>
                             if (state = "10") then
                                 ram_access_mode <= BYTE_ACCESS;
                                 reg_read_a_mux <= '1';
-                                SrcSel_D <= 0;
-                                IncDecVal_D <= "0000";
-                                OffsetSel_D <= 1;
-                                PrepostSel_D <= '0';
+                                SrcSel <= 0;
+                                IncDecVal <= "0000";
+                                OffsetSel <= 1;
+                                PrePostSel <= '0';
                                 ram_RW <= '0';
                                 ram_PD <= '1';
                                 ram_EN <= '1';
@@ -1163,10 +1169,10 @@ begin
                             if (state = "10") then
                                 ram_access_mode <= WORD_ACCESS;
                                 reg_read_a_mux <= '1';
-                                SrcSel_D <= 0;
-                                IncDecVal_D <= "0000";
-                                OffsetSel_D <= 1;
-                                PrepostSel_D <= '0';
+                                SrcSel <= 0;
+                                IncDecVal <= "0000";
+                                OffsetSel <= 1;
+                                PrePostSel <= '0';
                                 ram_RW <= '0';
                                 ram_PD <= '1';
                                 ram_EN <= '1';
@@ -1179,10 +1185,10 @@ begin
                         when "10" =>
                             if (state = "10") then
                                 reg_read_a_mux <= '1';
-                                SrcSel_D <= 0;
-                                IncDecVal_D <= "0000";
-                                OffsetSel_D <= 1;
-                                PrepostSel_D <= '0';
+                                SrcSel <= 0;
+                                IncDecVal <= "0000";
+                                OffsetSel <= 1;
+                                PrePostSel <= '0';
                                 ram_access_mode <= LONG_ACCESS;
                                 ram_RW <= '0';
                                 ram_PD <= '1';
@@ -1410,6 +1416,33 @@ begin
                         reg_write_in_mux <= 1;
                     end if;
 
+
+                elsif opcode(3 downto 0) = "1011" then 
+                
+                    if (opcode(7 downto 4) = "0000") then
+                    -- jsr Rm
+                        if (state = "10") then
+                            PR_LD_sel <= 3;
+                            PC_LD_sel <= 2;
+                            reg_read_a_mux <= '0';
+                            Srcsel <= 0;
+                            OffsetSel <= 1;
+                            IncDecVal <= "0000";
+                        end if;
+
+                    elsif (opcode(7 downto 4) = "0010") then
+                    -- jmp Rm
+                        if (state = "10") then
+                            PR_LD_sel <= 0;
+                            PC_LD_sel <= 2;
+                            reg_read_a_mux <= '0';
+                            Srcsel <= 0;
+                            OffsetSel <= 1;
+                            IncDecVal <= "0000";
+                        end if;
+                    end if;
+                
+
                 elsif opcode(3 downto 0) = "1110" or opcode(3 downto 0) = "1010" then
                     case opcode(7 downto 2) is
                         -- LDC/S Rm
@@ -1477,16 +1510,57 @@ begin
                         adder_T_out_sel <= 1;
                         T_LD_sel <= 1;
                     end if;
+
+                elsif ((opcode(11 downto 10) = "10" or opcode(11 downto 10) = "11") and
+                    (opcode(9 downto 8) = "01" or opcode(9 downto 8) = "11")) then
+                
+                    case opcode(11 downto 8) is
+                        when "1001" =>
+                        -- bt disp:8
+                            if (state = "10") then
+                                PC_LD_sel <= 2;
+                                PC_conditional_sel <= 1;
+                            end if;
+                        when "1011" =>
+                        -- bf disp:8
+                            if (state = "10") then
+                                PC_LD_sel <= 2;
+                                PC_conditional_sel <= 2;
+                            end if;
+                        when "1101" =>
+                        -- bt/s disp:8
+                            if (state = "10") then
+                                PC_LD_sel <= 2;
+                                PC_conditional_sel <= 1;
+                                -- to-do: add flushing here
+                            end if;
+                        when "1111" =>
+                        -- bf/s disp:8
+                            if (state = "10") then
+                                PC_LD_sel <= 2;
+                                PC_conditional_sel <= 2;
+                                -- to-do: add flushing here
+                            end if;
+                        when others =>
+                            null;
+                    end case;
+
+                    if (state = "10") then
+                        SrcSel <= 1;
+                        DispCutoff <= 2;
+                        OffsetSel <= 3;
+                    end if;
+
                 end if;
                 
 
             when "1001" =>
             -- mov.W @(disp:8, PC), Rn
                 if (state = "10") then
-                    SrcSel_D <= 1;
-                    DispCutoff_D <= 1;
-                    OffsetSel_D <= 3;
-                    PrepostSel_D <= '0';
+                    SrcSel <= 1;
+                    DispCutoff <= 1;
+                    OffsetSel <= 3;
+                    PrePostSel <= '0';
 
                     ram_access_mode <= WORD_ACCESS;
                     ram_RW <= '0';
@@ -1497,6 +1571,26 @@ begin
                     reg_write_in_mux <= 2;
                     reg_write_addr_mux <= 0;
                 end if;
+
+
+            when "1010" =>
+            -- bra disp:12
+                if (state = "10") then
+                    SrcSel <= 1;
+                    DispCutoff <= 3;
+                    OffsetSel <= 3;
+                    PC_LD_sel <= 2;
+                end if;
+
+            when "1011" =>
+            -- bsr disp:12
+                if (state = "10") then
+                    SrcSel <= 1;
+                    DispCutoff <= 3;
+                    OffsetSel <= 3;
+                    PC_LD_sel <= 2;
+                    PR_LD_sel <= 3;
+                end if;
             
 
             when "1100" =>
@@ -1506,26 +1600,26 @@ begin
                         when "00" =>
                             if (state = "10") then
                                 ram_access_mode <= BYTE_ACCESS;
-                                OffsetSel_D <= 2;
+                                OffsetSel <= 2;
                             end if;
                         when "01" =>
                             if (state = "10") then
                                 ram_access_mode <= WORD_ACCESS;
-                                OffsetSel_D <= 3;
+                                OffsetSel <= 3;
                             end if;
                         when "10" =>
                             if (state = "10") then
                                 ram_access_mode <= LONG_ACCESS;
-                                OffsetSel_D <= 4;
+                                OffsetSel <= 4;
                             end if;
                         when others =>
                             null;
                     end case;
                     
                     if (state = "10") then
-                        SrcSel_D <= 3;
-                        DispCutoff_D <= 1;
-                        PrepostSel_D <= '0';
+                        SrcSel <= 3;
+                        DispCutoff <= 1;
+                        PrePostSel <= '0';
                         reg_read_b_mux <= 2;
 
                         ram_RW <= '1';
@@ -1539,26 +1633,26 @@ begin
                         when "00" =>
                             if (state = "10") then
                                 ram_access_mode <= BYTE_ACCESS;
-                                OffsetSel_D <= 2;
+                                OffsetSel <= 2;
                             end if;
                         when "01" =>
                             if (state = "10") then
                                 ram_access_mode <= WORD_ACCESS;
-                                OffsetSel_D <= 3;
+                                OffsetSel <= 3;
                             end if;
                         when "10" =>
                             if (state = "10") then
                                 ram_access_mode <= LONG_ACCESS;
-                                OffsetSel_D <= 4;
+                                OffsetSel <= 4;
                             end if;
                         when others =>
                             null;
                     end case;
                     
                     if (state = "10") then
-                        SrcSel_D <= 3;
-                        DispCutoff_D <= 1;
-                        PrepostSel_D <= '0';
+                        SrcSel <= 3;
+                        DispCutoff <= 1;
+                        PrePostSel <= '0';
 
                         ram_RW <= '0';
                         ram_PD <= '1';
@@ -1572,10 +1666,10 @@ begin
                 elsif opcode(11 downto 8) = "0111" then
                 -- mova @(disp, PC), R0
                     if (state = "10") then
-                        SrcSel_D <= 2;
-                        DispCutoff_D <= 1;
-                        OffsetSel_D <= 4;
-                        PrepostSel_D <= '0';
+                        SrcSel <= 2;
+                        DispCutoff <= 1;
+                        OffsetSel <= 4;
+                        PrePostSel <= '0';
                         ram_EN <= '0';
                     elsif (state = "11") then
                         reg_write_en <= '1';
@@ -1661,10 +1755,10 @@ begin
             when "1101" =>
             -- mov.L @(disp:8, PC), Rn
                 if (state = "10") then
-                    SrcSel_D <= 2;
-                    DispCutoff_D <= 1;
-                    OffsetSel_D <= 4;
-                    PrepostSel_D <= '0';
+                    SrcSel <= 2;
+                    DispCutoff <= 1;
+                    OffsetSel <= 4;
+                    PrePostSel <= '0';
 
                     ram_access_mode <= LONG_ACCESS;
                     ram_RW <= '0';
@@ -1718,7 +1812,7 @@ begin
                             (31 downto 1 => '0') & SR_T when reg_write_in_sel_regs = 7 else
                             (others => 'X');
 
-    reg_write_in <= data_addr_writeback_WB when reg_write_in_mux = 0 else
+    reg_write_in <= addr_writeback_WB when reg_write_in_mux = 0 else
                 ALU_result_WB when reg_write_in_mux = 1 else
                 ram_data_read when reg_write_in_mux = 2 else
                 reg_in_reg_sel_result when reg_write_in_mux = 3 else
@@ -1726,47 +1820,30 @@ begin
 
 -- connecting components
 
-    data_addr_unit:  dataAddrUnit
+    data_addr_unit:  AddrUnit
         port map (
         -- inputs for base addr
-            SrcSel      => SrcSel_D,       -- singal for selection 
+            SrcSel      => SrcSel,       -- singal for selection 
 -- to-do: switch this back to PC_EX for pipeline !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             PC          => PC_EX_p4,  -- to-do: might be changed later
             Rn          => reg_out_a,   -- selected when 1
             GBR         => GBR,   -- selected when 2
         -- inputs for offset
-            OffsetSel   => OffsetSel_D,       -- singal for selection 
+            OffsetSel   => OffsetSel,       -- singal for selection 
             R0          => reg_out_R0,  -- selected when 0
-            IncDecVal   => IncDecVal_D,
+            Rm          => reg_out_b,   -- selected when 1
+            IncDecVal   => IncDecVal,
             -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
-            Disp     => opcode(7 downto 0),  
+            Disp     => opcode(11 downto 0),  
             -- choose to use last 0 (4 bits), 1 (8 bits) of disp
-            DispCutoff  => DispCutoff_D,       
+            DispCutoff  => DispCutoff,       
         -- signals from control unit, directly connect to the wrapped general mau
-            PrePostSel => PrePostSel_D,
+            PrePostSel => PrePostSel,
         -- outputs, directly connects to the wrapped general mau output
             Address    => ram_data_address,
-            AddrSrcOut => data_addr_writeback_EX
+            AddrSrcOut => addr_writeback_EX
         );
 
-        program_addr_unit:  programAddrUnit
-            port map(
-            -- inputs for base addr
-                SrcSel => SrcSel_P,       -- singal for selection 
-                PC  => PC_EX_p4,  -- to-do: change this to pc_ex when pipelined
-            -- inputs for offset
-                OffsetSel => OffsetSel_P,       -- singal for selection 
-                Rm  => reg_out_b,  -- selected when 0
-                -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
-                Disp => opcode(11 downto 0),  
-                -- choose to use last 0 (4 bits), 1 (8 bits) of disp
-                DispCutoff => DispCutoff_P,       
-            -- signals from control unit, directly connect to the wrapped general mau
-                PrePostSel => '1',
-            -- outputs, directly connects to the wrapped general mau output
-                Address => open,
-                AddrSrcOut => program_addr_src_out
-            );
 
 
         reg_file: RegFile

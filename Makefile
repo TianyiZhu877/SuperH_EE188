@@ -19,7 +19,7 @@ all:  tb
 tb:
 	@$(GDHL) -a $(FLAGS) $(ALL_SOURCES) $(TB_FILES)
 	@$(GDHL) -e $(FLAGS) SH2_CPU_tb
-	@$(GDHL) -r $(FLAGS) SH2_CPU_tb   --stop-time=6us  --vcd=wave.vcd --stop-delta=100000 
+	@$(GDHL) -r $(FLAGS) SH2_CPU_tb   --stop-time=10us  --vcd=wave.vcd --stop-delta=100000 
 	--wave=wave.ghw
 
 data_addr_unit:

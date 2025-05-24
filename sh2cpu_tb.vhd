@@ -167,7 +167,7 @@ begin
         Reset <= '1'; -- Deassert reset
 
         -- Wait for some time to observe behavior
-        wait for 5 us;
+        wait for 9 us;
 
         -- End simulation
         assert false report "End of simulation." severity failure;
