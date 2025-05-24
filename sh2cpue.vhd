@@ -183,6 +183,8 @@ architecture  structural  of  SH2_CPU  is
         );
     end component;
 
+-- All signals used for this project. See the cpu_dataflow_and_signals.jpg for definition. The 
+-- signals in blue are control signals.
     
 -- control signals
     -- memory

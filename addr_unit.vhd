@@ -12,7 +12,7 @@ use work.array_type_pkg.all;
 -- just use them as input signals, because their loading could be controlled by some signals form the control
 -- unit, and I want to leave the design when making the control unit.
 
--- A more detailed diagram could be found in memory_unit_structure.png
+-- Signals/wiring @addr_unit_dataflow.jpg
 
 entity  AddrUnit  is
     port (

@@ -5,6 +5,8 @@ use work.ALUConstants.all;
 
 -- The ALU designed specifically for SH2. Most signal connects directly into the wrapped general alu, but I also add the 
 -- capability to flip the bits and do subtraction. Later I want to extend this for multipilcation/division
+-- Signals/wiring @alu_dataflow.jpg
+
 entity ALU is
     port (
         ALUOpA   : in      std_logic_vector(31 downto 0);   -- first operand

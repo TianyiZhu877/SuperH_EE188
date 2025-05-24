@@ -223,7 +223,7 @@ begin
                         MemDB_read <= RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4);
                     elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR1) and
                         ((to_integer(unsigned(MemAB)) - START_ADDR1) < 4 * MEMSIZE))  then
-                        MemDB_read <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2)) - START_ADDR1 / 4));
+                        MemDB_read <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4);
                     elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR2) and
                         ((to_integer(unsigned(MemAB)) - START_ADDR2) < 4 * MEMSIZE))  then
                         MemDB_read <= RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4);
