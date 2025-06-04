@@ -1375,7 +1375,7 @@ begin
                         reg_write_in_mux <= 1;
                     end if;
                     
-                elsif opcode(7 downto 0) = "00010001" then
+                elsif opcode(7 downto 0) = "00010101" then
                 -- cmp/pl Rn
                     if state = "10" then
                         reg_read_b_mux <= 0;
@@ -1390,7 +1390,7 @@ begin
                         T_LD_sel <= 1;
                     end if;
                     
-                elsif opcode(7 downto 0) = "00010101" then
+                elsif opcode(7 downto 0) = "00010001" then
                 -- cmp/pz Rn
                     if state = "10" then
                         reg_read_b_mux <= 0;

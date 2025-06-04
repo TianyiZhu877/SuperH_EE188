@@ -231,9 +231,9 @@ begin
             when 6 => 
                 adder_T_out <= V;
             when 7 => 
-                adder_T_out <= S and (not Z);
+                adder_T_out <= (not S) and (not Z);
             when 8 => 
-                adder_T_out <= S;
+                adder_T_out <= (not S);
             when others => 
                 adder_T_out <= 'X';
         end case;
