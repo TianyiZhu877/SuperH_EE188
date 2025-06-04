@@ -1,5 +1,5 @@
 GDHL=ghdl
-FLAGS=--std=08 --ieee=synopsys
+FLAGS=--std=08 # --ieee=synopsys
 
 SOURCES_ADDRESSING = mau_general.vhd addr_unit.vhd
 SOURCES_RAM_ROUTING = ram_routing.vhd
@@ -10,7 +10,6 @@ ALL_SOURCES = $(SOURCES_ADDRESSING)  \
 			$(SOURCES_RAM_ROUTING) \
 			$(SOURCES_REG)	 \
 			$(SOURCES_ALU) \
-			sh2cpue_wrapped.vhd \
 			sh2cpue.vhd
 
 TB_FILES = memory.vhd sh2cpu_tb.vhd
