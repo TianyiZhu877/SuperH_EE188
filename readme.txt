@@ -1,5 +1,5 @@
-Core implementation in sh2cpue
-Extra credit of sh2 shll/r 2/8/16 instruction implemented
+Core implementation in sh2cpue.vhdAdd commentMore actions
+Extra credit of sh2 mutli-bit shift instructions implemented
 Mul instructions implmented with * operator to utilize artix 7 built-in dsp multiplier
 
 See cpu_dataflow_and_signals.jpg, alu_dataflow.jpg, addr_unit_dataflow.jpg for the detailed wiring/signal definition

@@ -1773,6 +1773,7 @@ begin
                 end if;
 
             when "1110" =>
+            -- mov imm, Rn
                 if (state = "10") then
                     alu_op_b_sel <= 1;
                     alu_op_a_sel <= 1;

@@ -181,8 +181,11 @@ begin
 
     process
         variable ram_temp : RAMtype;
+        variable filename : string(1 to 5);
     begin
         -- RAMbits0(0) <= "00000000000010000100000000000111";
+        -- filename := "fib";
+        filename := "arith";
         report "Initial RAMbits0(0): " & to_hstring(RAMbits0(0));
         wait for 0 ns;
         -- RAMbits0(0) <= x"01234567";
@@ -191,7 +194,7 @@ begin
         -- RAMbits0(0)(15 downto  0) <= "0000000000001000";
         -- RAMbits0(0)(31 downto 16) <= "0100000000000111";
 
-        load_ram(ram_temp, "test_mem_content/3.txt");
+        load_ram(ram_temp, "test_mem_content/"&filename&".txt");
         RAMbits0_init <= ram_temp;
         -- wait;
         -- RAMbits0 <= (others => (others => '-'));
@@ -201,7 +204,7 @@ begin
         
         wait for 9 us;
         ram_temp := RAMbits0;
-        compare_ram(ram_temp, "test_mem_content/3_out.txt");
+        compare_ram(ram_temp, "test_mem_content/"&filename&"_out.txt");
         wait;
     end process;
 
