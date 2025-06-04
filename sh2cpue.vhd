@@ -116,7 +116,14 @@ architecture  structural  of  SH2_CPU  is
     signal reg_out_a_debug :  std_logic_vector(31 downto 0);
     signal exception_debug :  std_logic;
 
+    
+    signal AB_trimmed :  std_logic_vector(31 downto 0);
+
 begin
+
+    -- AB <= '0' & AB_trimmed(30 downto 0);
+    -- AB <= (others => '0');
+    AB <= AB_trimmed;
 
     cpu_wrapped: SH2_CPU_wrapped
         port map (
@@ -124,7 +131,7 @@ begin
             NMI                 => NMI,
             INT                 => INT,
             clk                 => clock,
-            AB                  => AB,
+            AB                  => AB_trimmed,
             RE0                 => RE0,
             RE1                 => RE1,
             RE2                 => RE2,

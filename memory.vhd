@@ -161,7 +161,7 @@ begin
             -- first get current value of the byte
             if  ((CONV_INTEGER(MemAB) >= START_ADDR0) and
                  (CONV_INTEGER(MemAB - START_ADDR0) < (4 * MEMSIZE)))  then
-                -- MemData <= RAMbits0(CONV_INTEGER(MemAB(31 downto 2) - START_ADDR0 / 4));
+                MemData <= RAMbits0(CONV_INTEGER(MemAB(31 downto 2) - START_ADDR0 / 4));
             elsif  ((CONV_INTEGER(MemAB) >= START_ADDR1) and
                     (CONV_INTEGER(MemAB - START_ADDR1) < (4 * MEMSIZE)))  then
                 MemData <= RAMbits1(CONV_INTEGER(MemAB(31 downto 2) - START_ADDR1 / 4));
