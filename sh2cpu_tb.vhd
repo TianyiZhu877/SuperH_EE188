@@ -14,17 +14,8 @@ architecture sim of SH2_CPU_tb is
     signal AB                     : std_logic_vector(31 downto 0);
     signal RE0, RE1, RE2, RE3     : std_logic;
     signal WE0, WE1, WE2, WE3     : std_logic;
-    signal DB_read                     : std_logic_vector(31 downto 0) := (others => 'Z');
-    signal DB_write                     : std_logic_vector(31 downto 0) := (others => 'Z');
+    signal DB                     : std_logic_vector(31 downto 0) := (others => 'Z');
 
-    signal PC_reset_addr_debug    : std_logic_vector(31 downto 0) := (others => '0');    
-    signal opcode_debug : std_logic_vector(15 downto 0);
-    signal PC_debug:   std_logic_vector(31 downto 0);
-    signal ram_data_address_debug:   std_logic_vector(31 downto 0);
-    signal PC_LD_sel_debug:  integer range 0 to 3; 
-    signal ram_data_read_debug :  std_logic_vector(31 downto 0);
-    signal reg_out_a_debug :  std_logic_vector(31 downto 0);
-    signal exception_debug :  std_logic;
 
     component  MEMORY32x32
         generic (
@@ -34,10 +25,7 @@ architecture sim of SH2_CPU_tb is
             START_ADDR2 : integer;          -- starting address of third block
             START_ADDR3 : integer           -- starting address of fourth block
         );
-    
         port (
-            clk     : in std_logic;
-            reset   : in std_logic;
             RE0    : in     std_logic;      -- low byte read enable (active low)
             RE1    : in     std_logic;      -- byte 1 read enable (active low)
             RE2    : in     std_logic;      -- byte 2 read enable (active low)
@@ -47,8 +35,7 @@ architecture sim of SH2_CPU_tb is
             WE2    : in     std_logic;      -- byte 2 write enable (active low)
             WE3    : in     std_logic;      -- high byte write enable (active low)
             MemAB  : in     std_logic_vector(31 downto 0);  -- memory address bus
-            MemDB_write  : in  std_logic_vector(31 downto 0);   -- memory data bus
-            MemDB_read  : out std_logic_vector(31 downto 0)   -- memory data bus
+            MemDB  : inout  std_logic_vector(31 downto 0)   -- memory data bus
         );
     end  component;
 
@@ -57,7 +44,7 @@ architecture sim of SH2_CPU_tb is
             Reset   :  in     std_logic;                       -- reset signal (active low)
             NMI     :  in     std_logic;                       -- non-maskable interrupt signal (falling edge)
             INT     :  in     std_logic;                       -- maskable interrupt signal (active low)
-            clk   :  in     std_logic;                       -- system clock
+            clock   :  in     std_logic;                       -- system clock
             AB      :  out    std_logic_vector(31 downto 0);   -- memory address bus
             RE0     :  out    std_logic;                       -- first byte active low read enable
             RE1     :  out    std_logic;                       -- second byte active low read enable
@@ -67,19 +54,7 @@ architecture sim of SH2_CPU_tb is
             WE1     :  out    std_logic;                       -- second byte active low write enable
             WE2     :  out    std_logic;                       -- third byte active low write enable
             WE3     :  out    std_logic;                       -- fourth byte active low write enable
-            DB_write      :  out  std_logic_vector(31 downto 0);
-            DB_read      :  in  std_logic_vector(31 downto 0);
-
-            -- debug input signals
-            PC_reset_addr_debug      :  in  std_logic_vector(31 downto 0);    
-            -- debug probe signals
-            opcode_debug :  out  std_logic_vector(15 downto 0);
-            PC_debug: out  std_logic_vector(31 downto 0);
-            ram_data_address_debug: out  std_logic_vector(31 downto 0);
-            PC_LD_sel_debug: out integer range 0 to 3; 
-            ram_data_read_debug : out std_logic_vector(31 downto 0);
-            reg_out_a_debug : out std_logic_vector(31 downto 0);
-            exception_debug : out std_logic
+            DB      :  inout  std_logic_vector(31 downto 0)    -- memory data bus
         );
     end component;
 
@@ -94,7 +69,7 @@ begin
             Reset               => Reset,
             NMI                 => NMI,
             INT                 => INT,
-            clk               => clk,
+            clock               => clk,
             AB                  => AB,
             RE0                 => RE0,
             RE1                 => RE1,
@@ -104,16 +79,7 @@ begin
             WE1                 => WE1,
             WE2                 => WE2,
             WE3                 => WE3,
-            DB_read  => DB_read,
-            DB_write  => DB_write,
-
-            PC_reset_addr_debug => PC_reset_addr_debug,
-            opcode_debug            => opcode_debug,
-            PC_debug            => PC_debug,
-            PC_LD_sel_debug     => PC_LD_sel_debug,
-            ram_data_read_debug => ram_data_read_debug,
-            reg_out_a_debug => reg_out_a_debug,
-            exception_debug => exception_debug
+            DB  => DB
         );
 
 
@@ -126,9 +92,6 @@ begin
             START_ADDR3 => 3072
         )
         port map(
-            clk => clk,
-            reset => Reset,
-            MemAB                  => AB,
             RE0                 => RE0,
             RE1                 => RE1,
             RE2                 => RE2,
@@ -137,8 +100,8 @@ begin
             WE1                 => WE1,
             WE2                 => WE2,
             WE3                 => WE3,
-            MemDB_read                  => DB_read,
-            MemDB_write                  => DB_write
+            MemAB                  => AB,
+            MemDB                  => DB
         );
 
     -- clk generation
@@ -156,7 +119,7 @@ begin
     stim_proc: process
     begin
         -- Initial values
-        PC_reset_addr_debug <= x"00001000";
+        -- PC_reset_addr_debug <= x"00001000";
         Reset <= '1';
         NMI <= '1';
         INT <= '1';
