@@ -186,7 +186,8 @@ begin
         -- RAMbits0(0) <= "00000000000010000100000000000111";
         -- filename := "fib";
         -- filename := "arith";
-        filename := "logic";
+        -- filename := "logic";
+        filename := "shift";
         report "Initial RAMbits0(0): " & to_hstring(RAMbits0(0));
         wait for 0 ns;
         -- RAMbits0(0) <= x"01234567";
