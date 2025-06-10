@@ -431,6 +431,7 @@ begin
                 MACL <= (others => '0');
             elsif (MACL_LD_sel = 3) then
                 MACL <= ALU_result_EX;
+                -- MACL <= (others => 'X');
             else
                 MACL <= (others => 'X');
             end if;

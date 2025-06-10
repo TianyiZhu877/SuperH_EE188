@@ -287,6 +287,7 @@ end  structural;
 library ieee;
 use ieee.std_logic_1164.all;
 use work.ALUConstants.all;
+use ieee.numeric_std.all;
 
 entity  Adder  is
 
@@ -310,38 +311,45 @@ end  Adder;
 
 architecture  structural  of  Adder  is
 
-    component  AdderBit
-        port(
-            A  : in   std_logic;        -- first operand
-            B  : in   std_logic;        -- second operand
-            Ci : in   std_logic;        -- carry in from previous bit
-            S  : out  std_logic;        -- sum (result)
-            Co : out  std_logic         -- carry out to next bit
-        );
-    end component;
+    -- -----------------------------------------------------------------------
+    -- Local signals
+    -- -----------------------------------------------------------------------
+    constant W : integer := wordsize;                      -- shorthand
 
-    signal  carry : std_logic_vector(wordsize downto 0);        -- intermediate carry results
+    signal carry0  : std_logic;                            -- effective Cin
+    signal a_ext   : unsigned(W downto 0);                 -- operands, 1-bit wider
+    signal b_ext   : unsigned(W downto 0);
+    signal sum_ext : unsigned(W downto 0);                 -- W-bit sum + carry
+    signal carry : unsigned(W downto 0);                 -- W-bit sum + carry
 
 begin
 
-    -- get the carry in based on CinCmd
-    carry(0)  <=  '0'      when  CinCmd = CinCmd_ZERO  else
-                  '1'      when  CinCmd = CinCmd_ONE  else
-                  Cin      when  CinCmd = CinCmd_CIN  else
-                  not Cin  when  CinCmd = CinCmd_CINBAR  else
-                  'X';
+    carry0 <=  '0'      when CinCmd = CinCmd_ZERO   else
+               '1'      when CinCmd = CinCmd_ONE    else
+               Cin      when CinCmd = CinCmd_CIN    else
+               not Cin  when CinCmd = CinCmd_CINBAR else
+               'X';  -- should never happen in normal use
+    
+    carry  <= to_unsigned(1, W+1) when carry0 = '1' else to_unsigned(0, W+1);
 
-    A1:  for  i  in  AddResult'Range  generate      -- make enough AdderBits
-    begin
-        ABx: AdderBit  port map  (AddOpA(i), AddOpB(i), carry(i),
-                                  AddResult(i), carry(i + 1));
-    end generate;
 
-    Cout     <= carry(wordsize);        -- compute carry out
-    HalfCout <= carry(4);               -- half carry (carry into high nibble)
-    -- overflow if carry into sign bit doesn't match the carry out
-    Overflow <= carry(wordsize - 1) xor carry(wordsize);
+    a_ext <= '0' & unsigned(AddOpA);
+    b_ext <= '0' & unsigned(AddOpB);
 
+
+    sum_ext <= a_ext + b_ext + carry;
+
+
+    AddResult <= std_logic_vector(sum_ext(W-1 downto 0)); -- W-bit result
+    Cout      <= sum_ext(W);                              -- carry-out (bit W)
+    HalfCout  <= sum_ext(4);                              -- carry into bit 4
+                                                        --  = carry out of bit 3
+                                                        
+    -- Signed overflow: carry into MSB != carry out of MSB
+    Overflow  <= (AddOpA(W-1) and AddOpB(W-1) and not AddResult(W-1)) or
+                 (not AddOpA(W-1) and not AddOpB(W-1) and AddResult(W-1));
+
+    -- Overflow <= '1' when sum_ext(W-1) /= sum_ext(W) else '0';
 end  structural;
 
 

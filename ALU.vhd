@@ -134,9 +134,11 @@ begin
                  Result_special when ALU_special_cmd = '1' else
                  (others => 'X');
 
--- multiplication 
-    mul64_signed_Result <= std_logic_vector(signed(ALUOpA) * signed(ALUOpB));
-    mul64_unsigned_Result <= std_logic_vector(unsigned(ALUOpA) * unsigned(ALUOpB));
+-- multiplication, to-do: add this back after implemeting two-stage multiplication!!!
+    -- mul64_signed_Result <= std_logic_vector(signed(ALUOpA) * signed(ALUOpB));
+    -- mul64_unsigned_Result <= std_logic_vector(unsigned(ALUOpA) * unsigned(ALUOpB));
+    mul64_signed_Result <= (others => 'X');
+    mul64_unsigned_Result <= (others => 'X');
     process (all) begin
         MACH_out <= (others => 'X');
         case MULCmd is
@@ -148,8 +150,10 @@ begin
                 MACH_out <= mul64_unsigned_Result(63 downto 32);
             when 2 => 
                 MUL_result <= std_logic_vector(signed(ALUOpA(15 downto 0)) * signed(ALUOpB(15 downto 0)));
+                -- MUL_result <= (others => '1');
             when 3 => 
                 MUL_result <= std_logic_vector(unsigned(ALUOpA(15 downto 0)) * unsigned(ALUOpB(15 downto 0)));
+                -- MUL_result <= (others => '1');
             when others =>
                 MUL_result <= (others => 'X');
         end case;
