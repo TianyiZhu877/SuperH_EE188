@@ -158,7 +158,7 @@ architecture  behavioral  of  MEMORY32x32  is
             hread(line_buf, expected_val);  -- assumes hex format like DEADBEEF
 
             if ram(i) /= expected_val then
-                report "Mismatch at address " & integer'image(i) &
+                report "Mismatch at (1-index) line " & integer'image(i+1) &
                     ": got " & to_hstring(RAM(i)) &
                     ", expected " & to_hstring(expected_val)
                     severity error;
@@ -181,13 +181,17 @@ begin
 
     process
         variable ram_temp : RAMtype;
-        variable filename : string(1 to 5);
+        variable filename : string(1 to 1);
     begin
-        -- RAMbits0(0) <= "00000000000010000100000000000111";
+        filename := "3";
         -- filename := "fib";
         -- filename := "arith";
         -- filename := "logic";
-        filename := "shift";
+        -- filename := "xfern";
+        -- filename := "shift";            -- change PC_reset_addr_debug in tb.vhd:160 to x"00001020" when testing for this!!!!!!
+
+
+
         report "Initial RAMbits0(0): " & to_hstring(RAMbits0(0));
         wait for 0 ns;
         -- RAMbits0(0) <= x"01234567";
@@ -223,18 +227,18 @@ begin
                 -- first check if reading
                 if  (RE = '0')  then
                     -- reading, put the data out (check the address)
-                    if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
-                        ((to_integer(unsigned(MemAB)) - START_ADDR0) < 4 * MEMSIZE))  then
-                        MemDB_read <= RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4);
-                    elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR1) and
-                        ((to_integer(unsigned(MemAB)) - START_ADDR1) < 4 * MEMSIZE))  then
-                        MemDB_read <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4);
-                    elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR2) and
-                        ((to_integer(unsigned(MemAB)) - START_ADDR2) < 4 * MEMSIZE))  then
-                        MemDB_read <= RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4);
-                    elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR3) and
-                        ((to_integer(unsigned(MemAB)) - START_ADDR3) < 4 * MEMSIZE))  then
-                        MemDB_read <= RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4);
+                    if  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR0) and
+                        ((to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR0) < 4 * MEMSIZE))  then
+                        MemDB_read <= RAMbits0(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR0 / 4);
+                    elsif  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR1) and
+                        ((to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR1) < 4 * MEMSIZE))  then
+                        MemDB_read <= RAMbits1(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR1 / 4);
+                    elsif  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR2) and
+                        ((to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR2) < 4 * MEMSIZE))  then
+                        MemDB_read <= RAMbits2(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR2 / 4);
+                    elsif  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR3) and
+                        ((to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR3) < 4 * MEMSIZE))  then
+                        MemDB_read <= RAMbits3(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR3 / 4);
                     else
                         -- outside of any allowable address range - set output to X
                         MemDB_read <= (others => 'X');
@@ -266,18 +270,18 @@ begin
                     -- first get current value of the byte
 
                     -- finally write the updated value to memory
-                    if  ((to_integer(unsigned(MemAB)) >= START_ADDR0) and
-                        (to_integer(unsigned(MemAB)) - START_ADDR0) < (4 * MEMSIZE))  then
-                        RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4) <= MemData;
-                    elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR1) and
-                            (to_integer(unsigned(MemAB)) - START_ADDR1) < (4 * MEMSIZE))  then
-                        RAMbits1(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4) <= MemData;
-                    elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR2) and
-                        (to_integer(unsigned(MemAB)) - START_ADDR2) < (4 * MEMSIZE))  then
-                        RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4) <= MemData;
-                    elsif  ((to_integer(unsigned(MemAB)) >= START_ADDR3) and
-                        (to_integer(unsigned(MemAB)) - START_ADDR3) < (4 * MEMSIZE))  then
-                        RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4) <= MemData;
+                    if  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR0) and
+                        (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR0) < (4 * MEMSIZE))  then
+                        RAMbits0(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR0 / 4) <= MemData;
+                    elsif  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR1) and
+                            (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR1) < (4 * MEMSIZE))  then
+                        RAMbits1(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR1 / 4) <= MemData;
+                    elsif  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR2) and
+                        (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR2) < (4 * MEMSIZE))  then
+                        RAMbits2(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR2 / 4) <= MemData;
+                    elsif  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR3) and
+                        (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR3) < (4 * MEMSIZE))  then
+                        RAMbits3(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR3 / 4) <= MemData;
                     else
                         -- outside of any allowable address range - generate an error
                         assert (false)
@@ -306,19 +310,19 @@ begin
     process(all) begin 
         if  ((to_integer(unsigned(MemAB(30 downto 0))) >= START_ADDR0) and
             (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR0 < (4 * MEMSIZE)))  then
-            MemData <= RAMbits0(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR0 / 4);
+            MemData <= RAMbits0(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR0 / 4);
 
         elsif  (((to_integer(unsigned(MemAB(30 downto 0)))) >= START_ADDR1) and
                 (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR1) < (4 * MEMSIZE))  then
-            MemData <= RAMbits1(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR1 / 4);
+            MemData <= RAMbits1(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR1 / 4);
 
         elsif  (((to_integer(unsigned(MemAB(30 downto 0)))) >= START_ADDR2) and
         (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR2) < (4 * MEMSIZE)) then
-            MemData <= RAMbits2(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR2 / 4);
+            MemData <= RAMbits2(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR2 / 4);
 
         elsif  (((to_integer(unsigned(MemAB(30 downto 0)))) >= START_ADDR3) and
                 (to_integer(unsigned(MemAB(30 downto 0))) - START_ADDR3) < (4 * MEMSIZE))  then
-            MemData <= RAMbits3(to_integer(unsigned(MemAB(31 downto 2))) - START_ADDR3 / 4);
+            MemData <= RAMbits3(to_integer(unsigned(MemAB(30 downto 2))) - START_ADDR3 / 4);
             
         else
             MemData <= (others => 'X');

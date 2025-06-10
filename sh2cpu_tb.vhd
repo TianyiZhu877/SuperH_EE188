@@ -157,6 +157,7 @@ begin
     begin
         -- Initial values
         PC_reset_addr_debug <= x"00001000";
+        -- PC_reset_addr_debug <= x"00001020";
         Reset <= '1';
         NMI <= '1';
         INT <= '1';

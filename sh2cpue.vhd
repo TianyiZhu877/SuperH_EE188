@@ -694,7 +694,7 @@ begin
                         reg_write_addr_mux <= 0;
                     end if;
                     
-                elsif (opcode(3 downto 0) = "1010") then 
+                elsif (opcode(3 downto 0) = "1001") then 
                     if (state = "11") then
                         if (opcode(7 downto 4) = "0010") then
                         -- MOVT Rn
@@ -1130,6 +1130,7 @@ begin
             when "0101" =>
             -- mov.L @(disp:4, Rm), Rn
                 if (state = "10") then
+                    reg_read_a_mux <= '1';
                     SrcSel <= 0;
                     DispCutoff <= 0;
                     OffsetSel <= 4;
@@ -1163,7 +1164,7 @@ begin
                                 ram_EN <= '1';
                             elsif (state = "11") then
                                 reg_write_en <= '1';
-                                reg_write_in_mux <= 0;
+                                reg_write_in_mux <= 2;
                                 reg_write_addr_mux <= 0;
                             end if;
   
@@ -1675,7 +1676,7 @@ begin
                         ram_EN <= '0';
                     elsif (state = "11") then
                         reg_write_en <= '1';
-                        reg_write_in_mux <= 2;
+                        reg_write_in_mux <= 0;
                         reg_write_addr_mux <= 2;
                     end if;
 
