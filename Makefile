@@ -16,11 +16,13 @@ TB_FILES = memory.vhd sh2cpu_tb.vhd
 
 all:  tb
 
-tb:
-	@$(GDHL) -a $(FLAGS) $(ALL_SOURCES) $(TB_FILES)
-	@$(GDHL) -e $(FLAGS) SH2_CPU_tb
+tb: compile
 	@$(GDHL) -r $(FLAGS) SH2_CPU_tb   --stop-time=10us  --vcd=wave.vcd --stop-delta=100000 
 	--wave=wave.ghw
+	
+compile: 
+	@$(GDHL) -a $(FLAGS) $(ALL_SOURCES) $(TB_FILES)
+	@$(GDHL) -e $(FLAGS) SH2_CPU_tb
 
 addr_unit:
 	@$(GDHL) -a $(FLAGS) $(SOURCES_ADDRESSING)

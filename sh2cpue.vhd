@@ -187,12 +187,24 @@ architecture  structural  of  SH2_CPU  is
 -- signals in blue are control signals.
     
 -- control signals
-    -- memory
-    signal SrcSel      :    integer  range 4 downto 0;       -- singal for selection 
-    signal IncDecVal   :     std_logic_vector(3 downto 0);
-    signal OffsetSel   :    integer  range 5 downto 0;       -- singal for selection 
-    signal DispCutoff  :    integer  range 3 downto 0;       
-    signal PrePostSel :      std_logic;
+    -- register file
+    signal reg_read_a_mux : std_logic;         -- select the first register to output
+    signal reg_read_b_mux : integer range 0 to 2;         -- select the first register to output
+    signal reg_write_addr_mux : integer range 0 to 2;         -- select the register to write
+    signal reg_write_in_mux : integer range 0 to 3;         -- select the register to write
+    signal reg_write_en: std_logic;
+    signal reg_write_in_sel_regs : integer range 0 to 7;         -- select when reg_write_in_mux = 3
+    -- branch control
+    signal PC_LD_sleep: std_logic;
+    -- below all stops at EX stage:
+    signal br_flush: std_logic;
+    signal PC_LD_sel : integer range 0 to 3;         -- select the register to write
+    signal PC_conditional_sel       : integer range 0 to 2; 
+    -- control register
+    signal PR_LD_sel: integer range 0 to 3;
+    signal T_LD_sel: integer range 0 to 4;
+    signal LD_GBR: std_logic;
+    signal MACH_LD_sel, MACL_LD_sel : integer range 0 to 3;         -- select the register to write
     -- ALU
     signal alu_op_a_sel   : integer  range 0 to 2;
     signal alu_op_b_sel: integer  range 0 to 3;
@@ -204,42 +216,75 @@ architecture  structural  of  SH2_CPU  is
     signal ALUCmd   :   std_logic_vector(1 downto 0);    -- ALU result select
     signal FCmd     :   std_logic_vector(3 downto 0);    -- F-Block operation
     signal SCmd     :   std_logic_vector(2 downto 0);    -- shift operation
-    -- register
-    signal reg_read_a_mux : std_logic;         -- select the first register to output
-    signal reg_read_b_mux : integer range 0 to 2;         -- select the first register to output
-    signal reg_write_addr_mux : integer range 0 to 2;         -- select the register to write
-    signal reg_write_in_mux : integer range 0 to 3;         -- select the register to write
-    signal reg_write_in_sel_regs : integer range 0 to 7;         -- select when reg_write_in_mux = 3
-    signal reg_write_en: std_logic;
+    -- memory addr unit
+    signal SrcSel      :    integer  range 4 downto 0;       -- singal for selection 
+    signal IncDecVal   :     std_logic_vector(3 downto 0);
+    signal OffsetSel   :    integer  range 5 downto 0;       -- singal for selection 
+    signal DispCutoff  :    integer  range 3 downto 0;       
+    signal PrePostSel :      std_logic;
     -- RAM routing
     signal ram_EN          : std_logic;      -- 1 for enable, 0 for disable
     signal ram_PD          : std_logic;      -- 0 for program, 1 for data memory 
     signal ram_RW          : std_logic;      -- 0 for read, 1 for write, force read if program
     signal ram_access_mode : std_logic_vector(1 downto 0);       -- force WORD_ACCESS if program 
-    -- control register
     -- signal LD_PC: std_logic;
-    signal PR_LD_sel: integer range 0 to 3;
-    signal LD_IR: std_logic;
-    signal T_LD_sel: integer range 0 to 4;
-    signal LD_S: std_logic;                             -- unused
-    signal LD_SR_I: std_logic;                          -- unused
-    signal LD_GBR: std_logic;
-    signal PC_LD_sel : integer range 0 to 3;         -- select the register to write
-    signal PC_conditional_sel       : integer range 0 to 2; 
-    signal MACH_LD_sel, MACL_LD_sel : integer range 0 to 3;         -- select the register to write
+    -- signal LD_IR: std_logic;
     -- signal GBR_LD_sel : integer range 0 to 2;         -- select the register to write
+-- pipeline delayed control signals
+    signal reg_write_addr_mux_EX : integer range 0 to 2;         
+    signal reg_write_addr_mux_WB : integer range 0 to 2;        
+    signal reg_write_in_mux_EX : integer range 0 to 3;             
+    signal reg_write_in_mux_WB : integer range 0 to 3;        
+    signal reg_write_en_EX: std_logic;    
+    signal reg_write_en_WB: std_logic;     
+    signal reg_write_in_sel_regs_EX : integer range 0 to 7;     
+    -- branch control, below all stops at EX stage:
+    signal br_flush_EX: std_logic;
+    signal PC_LD_sel_EX : integer range 0 to 3;        
+    signal PC_conditional_sel_EX       : integer range 0 to 2; 
+    -- control register
+    signal PR_LD_sel_EX: integer range 0 to 3;
+    signal T_LD_sel_EX: integer range 0 to 4;
+    signal LD_GBR_EX: std_logic;
+    signal MACH_LD_sel_EX, MACL_LD_sel_EX : integer range 0 to 3;
+    -- ALU
+    signal alu_op_a_sel_EX   : integer  range 0 to 2;
+    signal alu_op_b_sel_EX: integer  range 0 to 3;
+    signal adder_cin_sel_EX : integer  range 0 to 2;
+    signal adder_T_out_sel_EX : integer range 0 to 8;
+    signal ALU_special_cmd_EX : std_logic;
+    signal MULCmd_EX: integer  range 0 to 3;
+    signal AddSub_EX   :   std_logic;                      
+    signal ALUCmd_EX   :   std_logic_vector(1 downto 0);   
+    signal FCmd_EX     :   std_logic_vector(3 downto 0);   
+    signal SCmd_EX     :   std_logic_vector(2 downto 0);          
+    -- memory addr unit
+    signal SrcSel_EX      :    integer  range 4 downto 0;      
+    signal IncDecVal_EX   :     std_logic_vector(3 downto 0);
+    signal OffsetSel_EX   :    integer  range 5 downto 0;     
+    signal DispCutoff_EX  :    integer  range 3 downto 0;       
+    signal PrePostSel_EX :      std_logic;
+    -- RAM routing
+    signal ram_EN_EX          : std_logic;    
+    signal ram_PD_EX          : std_logic;   
+    signal ram_RW_EX          : std_logic;     
+    signal ram_access_mode_EX : std_logic_vector(1 downto 0);      
 
--- registers
-    signal PC: std_logic_vector(31 downto 0);
+
+-- system registers
     signal PR: std_logic_vector(31 downto 0);
-    signal IR: std_logic_vector(15 downto 0);
     signal GBR: std_logic_vector(31 downto 0);
     signal SR_I:  std_logic_vector(3 downto 0);
     signal SR_S:  std_logic;
     signal SR_T:  std_logic;
     signal SR: std_logic_vector(31 downto 0);
     signal MACH, MACL: std_logic_vector(31 downto 0);
--- pipeline registers
+-- component data outputs
+    signal reg_out_a : std_logic_vector(31 downto 0);     -- the data output for the first register
+    signal reg_out_b : std_logic_vector(31 downto 0);      -- the data output for the second register
+    signal IR: std_logic_vector(15 downto 0);
+    signal PC: std_logic_vector(31 downto 0);
+-- pipeline component data outputs cache
     signal opcode: std_logic_vector(15 downto 0);
     -- signal PC_EX: std_logic_vector(31 downto 0);   -- address for a program currently at executiong stage
 
@@ -256,8 +301,6 @@ architecture  structural  of  SH2_CPU  is
     -- register signals
     signal reg_sel_a : integer range 15 downto 0;         -- select the first register to output
     signal reg_sel_b : integer range 15 downto 0;         -- select the second register to output
-    signal reg_out_a : std_logic_vector(31 downto 0);     -- the data output for the first register
-    signal reg_out_b : std_logic_vector(31 downto 0);      -- the data output for the second register
     signal reg_out_R0 : std_logic_vector(31 downto 0);      -- the data output for the second register
     signal reg_write_in: std_logic_vector(31 downto 0);
     signal reg_in_reg_sel_result: std_logic_vector(31 downto 0);
@@ -298,7 +341,7 @@ begin
     opcode_debug <= opcode;
     PC_debug <= PC;
     ram_data_address_debug <= ram_data_address;
-    PC_LD_sel_debug <= PC_LD_sel; 
+    PC_LD_sel_debug <= PC_LD_sel_EX; 
     ram_data_read_debug <= ram_data_read;
     reg_out_a_debug <= reg_out_a;
     exception_debug <= ram_exception;
@@ -311,12 +354,12 @@ begin
             PR  when PC_LD_actual = 3  else
             PC_reset_addr_debug;
 
-    PC_conditional <= '0' when PC_conditional_sel = 0 else
-                    (not SR_T) when PC_conditional_sel = 1 else
-                    SR_T when PC_conditional_sel = 2 else
+    PC_conditional <= '0' when PC_conditional_sel_EX = 0 else
+                    (not SR_T) when PC_conditional_sel_EX = 1 else
+                    SR_T when PC_conditional_sel_EX = 2 else
                     'X';
 
-    PC_LD_actual <= PC_LD_sel when PC_conditional = '0' else
+    PC_LD_actual <= PC_LD_sel_EX when PC_conditional = '0' else
                     1 when PC_conditional = '1' else
                     0;
 
@@ -326,31 +369,72 @@ begin
         if rising_edge(clk) then
 
             if (reset = '1') then 
-            
--- simple FSM, loop between the three states for unpipelined
--- the DE and EX is also merged!!!
-                case state is
-                    when "00" =>
-                        state <= "10";
-                    -- when "01" =>
-                    --     state <= "10";
-                    when "10" =>
-                        state <= "11";
-                    when "11" =>
-                        state <= "00";
-                    when others =>
-                        state <= "00";
-                end case;
+    -- pipeline control signals update
+            -- de -> EX:
 
+        reg_write_addr_mux_EX <= reg_write_addr_mux;
+        reg_write_in_mux_EX <= reg_write_in_mux;     
+        reg_write_en_EX <= reg_write_en;  
+        reg_write_in_sel_regs_EX <= reg_write_in_sel_regs;    
+        -- branch control
+        br_flush_EX <= br_flush;
+        PC_LD_sel_EX <= PC_LD_sel;      
+        PC_conditional_sel_EX <= PC_conditional_sel;
+        -- control register
+        PR_LD_sel_EX <=  PR_LD_sel;
+        T_LD_sel_EX <=  T_LD_sel;
+        LD_GBR_EX <=  LD_GBR;
+        MACH_LD_sel_EX <=  MACH_LD_sel;
+        MACL_LD_sel_EX <= MACL_LD_sel;
+        -- ALU
+        alu_op_a_sel_EX <= alu_op_a_sel;
+        alu_op_b_sel_EX <= alu_op_b_sel;
+        adder_cin_sel_EX <= adder_cin_sel;
+        adder_T_out_sel_EX <= adder_T_out_sel;
+        ALU_special_cmd_EX <= ALU_special_cmd;
+        MULCmd_EX <= MULCmd;
+        AddSub_EX <=  AddSub;                    
+        ALUCmd_EX  <= ALUCmd; 
+        FCmd_EX  <=   FCmd;  
+        SCmd_EX  <=   SCmd;         
+        -- memory addr unit
+        SrcSel_EX   <=  SrcSel;      
+        IncDecVal_EX  <= IncDecVal;
+        OffsetSel_EX <= OffsetSel;     
+        DispCutoff_EX <= DispCutoff;       
+        PrePostSel_EX <= PrePostSel;
+        -- RAM routing
+        ram_EN_EX <= ram_EN;    
+        ram_PD_EX <= ram_PD;   
+        ram_RW_EX <= ram_RW;     
+        ram_access_mode_EX <= ram_access_mode;  
+
+            -- WB->EX:
+        reg_write_addr_mux_WB <= reg_write_addr_mux_EX;
+        reg_write_in_mux_WB <= reg_write_in_mux_EX;
+        reg_write_en_WB <= reg_write_en_EX;
+
+    
+    -- compute results cache
+            -- ALU/addr_unit result
+                reg_out_a_WB <= reg_out_a;
+                reg_out_b_WB <= reg_out_b;
+                ALU_result_WB <= ALU_result_EX;
+                -- ALU_cout_1 <= ALU_cout_0;
+                -- ALU_overflow_1 <= ALU_overflow_0;
+                addr_writeback_WB <= addr_writeback_EX;
+            -- PC register update
+                PC <= PC_pre;
+                PC_EX <= PC;
 
     -- control registers
-                if (PR_LD_sel = 0) then
+                if (PR_LD_sel_EX = 0) then
                     PR <= PR;
-                elsif (PR_LD_sel = 1) then
+                elsif (PR_LD_sel_EX = 1) then
                     PR <= reg_out_b;
-                elsif (PR_LD_sel = 2) then
+                elsif (PR_LD_sel_EX = 2) then
                     PR <= PC;
-                elsif (PR_LD_sel = 3) then
+                elsif (PR_LD_sel_EX = 3) then
                     PR <= PC_EX_p4;
                 else
                     PR <= (others => 'X');
@@ -364,25 +448,13 @@ begin
                     IR <= (others => 'X');
                 end if;
 
-                if (LD_GBR) then
+                if (LD_GBR_EX) then
                     GBR <= reg_out_b;
                 else
                     GBR <= GBR;
                 end if;
 
 
-    -- ALU results
-                reg_out_a_WB <= reg_out_a;
-                reg_out_b_WB <= reg_out_b;
-                ALU_result_WB <= ALU_result_EX;
-                -- ALU_cout_1 <= ALU_cout_0;
-                -- ALU_overflow_1 <= ALU_overflow_0;
-                addr_writeback_WB <= addr_writeback_EX;
-
-
-    -- pipelining register update
-                PC <= PC_pre;
-                -- PC_EX <= PC;
 
             else
                 PC <= PC_reset_addr_debug;
@@ -390,46 +462,84 @@ begin
                 SR_S <= '0';
                 SR_T <= '0';
                 SR_I <= "1111";
+
+                -- pipeline delayed control signals
+                reg_write_addr_mux_EX <= 0;         
+                reg_write_addr_mux_WB <= 0;     
+                reg_write_in_mux_EX <= 0;             
+                reg_write_in_mux_WB <= 0;       
+                reg_write_en_EX <= '0';     
+                reg_write_en_WB <= '0';  
+                reg_write_in_sel_regs_EX <= 0;   
+                -- branch control
+                br_flush_EX <= '0'; 
+                PC_LD_sel_EX <= 0;        
+                PC_conditional_sel_EX    <= 0; 
+                -- control register
+                PR_LD_sel_EX <= 0; 
+                T_LD_sel_EX <= 0; 
+                LD_GBR_EX <= '0'; 
+                MACH_LD_sel_EX<= 0; 
+                MACL_LD_sel_EX <= 0; 
+                -- ALU
+                alu_op_a_sel_EX   <= 0; 
+                alu_op_b_sel_EX <= 0; 
+                adder_cin_sel_EX <= 0; 
+                adder_T_out_sel_EX <= 0; 
+                ALU_special_cmd_EX  <= '0'; 
+                MULCmd_EX <= 0; 
+                AddSub_EX    <= '0';                    
+                ALUCmd_EX    <= "00";   
+                FCmd_EX    <= "0000";     
+                SCmd_EX    <= "000";        
+                -- memory addr unit
+                SrcSel_EX      <= 0;     
+                IncDecVal_EX   <= "0000";     
+                OffsetSel_EX  <= 0;   
+                DispCutoff_EX  <= 0; 
+                PrePostSel_EX  <= '0'; 
+                -- RAM routing
+                ram_EN_EX   <= '0'; 
+                ram_PD_EX   <= '0'; 
+                ram_RW_EX   <= '0'; 
+                ram_access_mode_EX  <= "00";     
             end if;
                  
-                -- if (LD_S) then
-                --     SR_S <= '0';            
-                -- end if;
                 
     -- SR       
-            if (T_LD_sel = 0) then
+            if (T_LD_sel_EX = 0) then
                 SR_T <= SR_T;
-            elsif  (T_LD_sel = 1) then
+            elsif  (T_LD_sel_EX = 1) then
                 SR_T <= ALU_T_out;
-            elsif  (T_LD_sel = 2) then
+            elsif  (T_LD_sel_EX = 2) then
                 SR_T <= reg_out_b(0);
-            elsif  (T_LD_sel = 3) then
+            elsif  (T_LD_sel_EX = 3) then
                 SR_T <= '0';
-            elsif  (T_LD_sel = 4) then
+            elsif  (T_LD_sel_EX = 4) then
                 SR_T <= '1';
             else
                 SR_T <= 'X'; 
             end if;
             
-            if (MACH_LD_sel = 0) then
+            if (MACH_LD_sel_EX = 0) then
                 MACH <= MACH;
-            elsif (MACH_LD_sel = 1) then
+            elsif (MACH_LD_sel_EX = 1) then
                 MACH <= reg_out_b;
-            elsif (MACH_LD_sel = 2) then
+            elsif (MACH_LD_sel_EX = 2) then
                 MACH <= (others => '0');
-            elsif (MACH_LD_sel = 3) then
+            elsif (MACH_LD_sel_EX = 3) then
                 MACH <= ALU_MACH_out;
             else
                 MACH <= (others => 'X');
             end if;
 
-            if (MACL_LD_sel = 0) then
+            if (MACL_LD_sel_EX = 0) then
                 MACL <= MACL;
-            elsif (MACL_LD_sel = 1) then
+            elsif (MACL_LD_sel_EX = 1) then
                 MACL <= reg_out_b;
-            elsif (MACL_LD_sel = 2) then
+            elsif (MACL_LD_sel_EX = 2) then
                 MACL <= (others => '0');
-            elsif (MACL_LD_sel = 3) then
+            elsif (MACL_LD_sel_EX = 3) then
                 MACL <= ALU_result_EX;
                 -- MACL <= (others => 'X');
             else
@@ -447,6 +557,8 @@ begin
     opcode <= ram_data_read(15 downto 0) when state = "10" else
                     IR;
     -- opcode <= IR;
+
+    ram_EN <= '1';      -- keep ram enabled for now
 
 -- decoding
     process(all) begin
@@ -475,7 +587,6 @@ begin
         reg_write_in_sel_regs <= 0;
         reg_write_en <= '0';
         -- ram rounting
-        ram_EN <= '0';      -- 1 for enable, 0 for disable
         ram_PD <= '0';      -- 0 for program, 1 for data memory 
         ram_RW  <= '0';      -- 0 for read, 1 for write, force read if program
         ram_access_mode <= "00";       -- force WORD_ACCESS if program 
@@ -493,7 +604,7 @@ begin
 
 
         if (state = "00") then
-            ram_EN <= '1';
+            -- ram_EN <= '1';
             ram_RW <= '0';
             ram_access_mode <= WORD_ACCESS;
             ram_PD <= '0';
@@ -561,7 +672,7 @@ begin
                         PrePostSel <= '0';
                         ram_RW <= '1';
                         ram_PD <= '1';
-                        ram_EN <= '1';
+                        -- ram_EN <= '1';
                         reg_read_b_mux <= 1;
                         ram_access_mode <= BYTE_ACCESS;
                     end if;
@@ -576,7 +687,7 @@ begin
                         PrePostSel <= '0';
                         ram_RW <= '1';
                         ram_PD <= '1';
-                        ram_EN <= '1';
+                        -- ram_EN <= '1';
                         reg_read_b_mux <= 1;
                         ram_access_mode <= WORD_ACCESS;
                     end if;  
@@ -590,7 +701,7 @@ begin
                         PrePostSel <= '0';
                         ram_RW <= '1';
                         ram_PD <= '1';
-                        ram_EN <= '1';
+                        -- ram_EN <= '1';
                         reg_read_b_mux <= 1;
                         ram_access_mode <= LONG_ACCESS;
                         
@@ -631,7 +742,7 @@ begin
                         PrePostSel <= '0';
                         ram_RW <= '0';
                         ram_PD <= '1';
-                        ram_EN <= '1';
+                        -- ram_EN <= '1';
                         ram_access_mode <= BYTE_ACCESS;
                     elsif (state = "11") then
                         reg_write_addr_mux <= 0;
@@ -648,7 +759,7 @@ begin
                         PrePostSel <= '0';
                         ram_RW <= '0';
                         ram_PD <= '1';
-                        ram_EN <= '1';
+                        -- ram_EN <= '1';
                         ram_access_mode <= WORD_ACCESS;
                     elsif (state = "11") then
                         reg_write_addr_mux <= 0;
@@ -665,7 +776,7 @@ begin
                         PrePostSel <= '0';
                         ram_RW <= '0';
                         ram_PD <= '1';
-                        ram_EN <= '1';
+                        -- ram_EN <= '1';
                         ram_access_mode <= LONG_ACCESS;
                     elsif (state = "11") then
                         reg_write_addr_mux <= 0;
@@ -738,7 +849,7 @@ begin
                     ram_access_mode <= LONG_ACCESS;
                     ram_RW <= '1';
                     ram_PD <= '1';
-                    ram_EN <= '1';
+                    -- ram_EN <= '1';
                 end if;
 
             
@@ -749,17 +860,17 @@ begin
                         when "00" =>
                             if (state = "10") then
                                 ram_access_mode <= BYTE_ACCESS;
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             end if;
                         when "01" =>
                             if (state = "10") then
                                 ram_access_mode <= WORD_ACCESS;
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             end if;
                         when "10" => 
                             if (state = "10") then
                                 ram_access_mode <= LONG_ACCESS;
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             end if;
                         when others =>
                             null;
@@ -785,7 +896,7 @@ begin
                             if (state = "10") then
                                 IncDecVal <= "1111";
                                 ram_access_mode <= BYTE_ACCESS;
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             elsif (state = "11") then
                                 reg_write_en <= '1';
                             end if;
@@ -794,7 +905,7 @@ begin
                             if (state = "10") then
                                 IncDecVal <= "1110";
                                 ram_access_mode <= WORD_ACCESS;
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             elsif (state = "11") then
                                 reg_write_en <= '1';
                             end if;
@@ -803,7 +914,7 @@ begin
                             if (state = "10") then
                                 IncDecVal <= "1100";
                                 ram_access_mode <= LONG_ACCESS;
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             elsif (state = "11") then
                                 reg_write_en <= '1';
                             end if;
@@ -1140,7 +1251,7 @@ begin
                     ram_access_mode <= LONG_ACCESS;
                     ram_RW <= '0';
                     ram_PD <= '1';
-                    ram_EN <= '1';
+                    -- ram_EN <= '1';
                 elsif (state = "11") then
                     reg_write_en <= '1';
                     reg_write_in_mux <= 2;
@@ -1162,7 +1273,7 @@ begin
                                 PrePostSel <= '0';
                                 ram_RW <= '0';
                                 ram_PD <= '1';
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             elsif (state = "11") then
                                 reg_write_en <= '1';
                                 reg_write_in_mux <= 2;
@@ -1179,7 +1290,7 @@ begin
                                 PrePostSel <= '0';
                                 ram_RW <= '0';
                                 ram_PD <= '1';
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             elsif (state = "11") then
                                 reg_write_en <= '1';
                                 reg_write_in_mux <= 2;
@@ -1196,7 +1307,7 @@ begin
                                 ram_access_mode <= LONG_ACCESS;
                                 ram_RW <= '0';
                                 ram_PD <= '1';
-                                ram_EN <= '1';
+                                -- ram_EN <= '1';
                             elsif (state = "11") then
                                 reg_write_en <= '1';
                                 reg_write_in_mux <= 2;
@@ -1569,7 +1680,7 @@ begin
                     ram_access_mode <= WORD_ACCESS;
                     ram_RW <= '0';
                     ram_PD <= '1';
-                    ram_EN <= '1';
+                    -- ram_EN <= '1';
                 elsif (state = "11") then
                     reg_write_en <= '1';
                     reg_write_in_mux <= 2;
@@ -1628,7 +1739,7 @@ begin
 
                         ram_RW <= '1';
                         ram_PD <= '1';
-                        ram_EN <= '1';
+                        -- ram_EN <= '1';
                     end if;
 
                 elsif (opcode(11 downto 10) = "01") and (opcode(9 downto 8) /= "11") then
@@ -1660,7 +1771,7 @@ begin
 
                         ram_RW <= '0';
                         ram_PD <= '1';
-                        ram_EN <= '1';
+                        -- ram_EN <= '1';
                     elsif (state = "11") then
                         reg_write_en <= '1';
                         reg_write_in_mux <= 2;
@@ -1674,7 +1785,7 @@ begin
                         DispCutoff <= 1;
                         OffsetSel <= 4;
                         PrePostSel <= '0';
-                        ram_EN <= '0';
+                        -- ram_EN <= '0';
                     elsif (state = "11") then
                         reg_write_en <= '1';
                         reg_write_in_mux <= 0;
@@ -1767,7 +1878,7 @@ begin
                     ram_access_mode <= LONG_ACCESS;
                     ram_RW <= '0';
                     ram_PD <= '1';
-                    ram_EN <= '1';
+                    -- ram_EN <= '1';
                 elsif (state = "11") then
                     reg_write_en <= '1';
                     reg_write_in_mux <= 2;
@@ -1803,24 +1914,24 @@ begin
                 to_integer(unsigned(opcode(7 downto 4))) when   reg_read_b_mux = 1  else
                 0 when   reg_read_b_mux = 2  else
                 11;  
-    reg_write_addr <= to_integer(unsigned(opcode(11 downto 8))) when  reg_write_addr_mux = 0  else
-            to_integer(unsigned(opcode(7 downto 4))) when   reg_write_addr_mux = 1  else
-             0 when   reg_write_addr_mux = 2  else
+    reg_write_addr <= to_integer(unsigned(opcode(11 downto 8))) when  reg_write_addr_mux_WB = 0  else
+            to_integer(unsigned(opcode(7 downto 4))) when   reg_write_addr_mux_WB = 1  else
+             0 when   reg_write_addr_mux_WB = 2  else
             12;              -- to-do: change to opcode_WB for pipelined!!!
 
-    reg_in_reg_sel_result <= reg_out_b_WB when reg_write_in_sel_regs = 0 else
-                            SR when reg_write_in_sel_regs = 1 else
-                            GBR when reg_write_in_sel_regs = 2 else
-                            MACH when reg_write_in_sel_regs = 4 else
-                            MACL when reg_write_in_sel_regs = 5 else
-                            PR when reg_write_in_sel_regs = 6 else
-                            (31 downto 1 => '0') & SR_T when reg_write_in_sel_regs = 7 else
+    reg_in_reg_sel_result <= reg_out_b_WB when reg_write_in_sel_regs_EX = 0 else
+                            SR when reg_write_in_sel_regs_EX = 1 else
+                            GBR when reg_write_in_sel_regs_EX = 2 else
+                            MACH when reg_write_in_sel_regs_EX = 4 else
+                            MACL when reg_write_in_sel_regs_EX = 5 else
+                            PR when reg_write_in_sel_regs_EX = 6 else
+                            (31 downto 1 => '0') & SR_T when reg_write_in_sel_regs_EX = 7 else
                             (others => 'X');
 
-    reg_write_in <= addr_writeback_WB when reg_write_in_mux = 0 else
-                ALU_result_WB when reg_write_in_mux = 1 else
-                ram_data_read when reg_write_in_mux = 2 else
-                reg_in_reg_sel_result when reg_write_in_mux = 3 else
+    reg_write_in <= addr_writeback_WB when reg_write_in_mux_WB = 0 else
+                ALU_result_WB when reg_write_in_mux_WB = 1 else
+                ram_data_read when reg_write_in_mux_WB = 2 else
+                reg_in_reg_sel_result when reg_write_in_mux_WB = 3 else
                 (others => 'X');
 
 -- connecting components
@@ -1828,22 +1939,22 @@ begin
     data_addr_unit:  AddrUnit
         port map (
         -- inputs for base addr
-            SrcSel      => SrcSel,       -- singal for selection 
+            SrcSel      => SrcSel_EX,       -- singal for selection 
 -- to-do: switch this back to PC_EX for pipeline !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             PC          => PC_EX_p4,  -- to-do: might be changed later
             Rn          => reg_out_a,   -- selected when 1
             GBR         => GBR,   -- selected when 2
         -- inputs for offset
-            OffsetSel   => OffsetSel,       -- singal for selection 
+            OffsetSel   => OffsetSel_EX,       -- singal for selection 
             R0          => reg_out_R0,  -- selected when 0
             Rm          => reg_out_b,   -- selected when 1
-            IncDecVal   => IncDecVal,
+            IncDecVal   => IncDecVal_EX,
             -- selected when +-2 (no shift), +-3 (shift 1), +-4 (shift 2), and 0 for some operations
             Disp     => opcode(11 downto 0),  
             -- choose to use last 0 (4 bits), 1 (8 bits) of disp
-            DispCutoff  => DispCutoff,       
+            DispCutoff  => DispCutoff_EX,       
         -- signals from control unit, directly connect to the wrapped general mau
-            PrePostSel => PrePostSel,
+            PrePostSel => PrePostSel_EX,
         -- outputs, directly connects to the wrapped general mau output
             Address    => ram_data_address,
             AddrSrcOut => addr_writeback_EX
@@ -1855,7 +1966,7 @@ begin
             port map (
                 clk        => clk,                         -- clock
                 data_in    => reg_write_in,     -- the data to write to a register
-                write_en   => reg_write_en,                         -- write the data if 1
+                write_en   => reg_write_en_WB,                         -- write the data if 1
                 write_sel  => reg_write_addr,         -- select which reg to write to
                 read_sel_a => reg_read_a,         -- select the first register to output
                 read_sel_b => reg_read_b,         -- select the second register to output
@@ -1871,16 +1982,16 @@ begin
                 immd   => opcode(7 downto 0),   -- immediate value (IR 7-0)
                 T     => SR_T,                       -- T flag 
 
-                op_a_sel  => alu_op_a_sel,
-                op_b_sel => alu_op_b_sel,
-                adder_cin_sel => adder_cin_sel,
-                adder_T_out_sel => adder_T_out_sel,
-                ALU_special_cmd => ALU_special_cmd,
-                MULCmd => MULCmd,
-                AddSub   => AddSub,                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
-                ALUCmd   => ALUCmd,    -- ALU result select
-                FCmd    => FCmd,    -- F-Block operation
-                SCmd    => SCmd,    -- shift operation
+                op_a_sel  => alu_op_a_sel_EX,
+                op_b_sel => alu_op_b_sel_EX,
+                adder_cin_sel => adder_cin_sel_EX,
+                adder_T_out_sel => adder_T_out_sel_EX,
+                ALU_special_cmd => ALU_special_cmd_EX,
+                MULCmd => MULCmd_EX,
+                AddSub   => AddSub_EX,                       -- 1 for add, 0 for sub, always the 2nd bit of IR for SH2!  
+                ALUCmd   => ALUCmd_EX,    -- ALU result select
+                FCmd    => FCmd_EX,    -- F-Block operation
+                SCmd    => SCmd_EX,    -- shift operation
                 
                 Result  => ALU_result_EX,   -- ALU result
                 MACH_out => ALU_MACH_out,
@@ -1890,10 +2001,10 @@ begin
         ram_rounting_0: RAMRouting
             port map (
                 clk => clk,
-                EN  => ram_EN,      -- 1 for enable, 0 for disable
-                PD  => ram_PD,      -- 0 for program, 1 for data memory 
-                RW  => ram_RW,      -- 0 for read, 1 for write, force read if program
-                access_mode => ram_access_mode,       -- force WORD_ACCESS if program     
+                EN  => ram_EN_EX,      -- 1 for enable, 0 for disable
+                PD  => ram_PD_EX,      -- 0 for program, 1 for data memory 
+                RW  => ram_RW_EX,      -- 0 for read, 1 for write, force read if program
+                access_mode => ram_access_mode_EX,       -- force WORD_ACCESS if program     
                 program_address => PC_pre,   -- memory address bus
                 data_address  => ram_data_address,   -- memory address bus
                 write_data => reg_out_b,
