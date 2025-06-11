@@ -413,7 +413,7 @@ begin
                     'X';
 
     PC_LD_actual <= PC_LD_sel_EX when PC_conditional = '0' else
-                    1 when PC_conditional = '1' else
+                    0 when PC_conditional = '1' else
                     0;
 
     PC_EX_p4 <= std_logic_vector(unsigned(PC_EX) + 4);  -- to-do: change RHS to PC_EX

@@ -12,72 +12,70 @@ entity RegFile is
         read_sel_b : in  integer range 15 downto 0;         -- select the second register to output
         data_out_a : out std_logic_vector(31 downto 0);     -- the data output for the first register
         data_out_b : out std_logic_vector(31 downto 0);     -- the data output for the second register
-        data_out_0 : out std_logic_vector(31 downto 0)      -- the data output always connected to register 0 register
+        data_out_0 : out std_logic_vector(31 downto 0)      -- the data output always connected to register 0
     );
 end RegFile;
 
 architecture behavioral of RegFile is
 
-    component RegArray is
-        generic (
-            regcnt   : integer := 32;    -- default number of registers is 32
-            wordsize : integer := 8      -- default width is 8-bits
-        );
+    subtype word_t       is std_logic_vector(31 downto 0);
+    type    reg_array_t  is array (0 to 15) of word_t;
+
+    signal regs : reg_array_t := (others => (others => '0'));    
     
-        port(
-            RegIn      : in   std_logic_vector(wordsize - 1 downto 0);
-            RegInSel   : in   integer  range regcnt - 1 downto 0;
-            RegStore   : in   std_logic;
-            RegASel    : in   integer  range regcnt - 1 downto 0;
-            RegBSel    : in   integer  range regcnt - 1 downto 0;
-            RegAxIn    : in   std_logic_vector(wordsize - 1 downto 0);
-            RegAxInSel : in   integer  range regcnt - 1 downto 0;
-            RegAxStore : in   std_logic;
-            RegA1Sel   : in   integer  range regcnt - 1 downto 0;
-            RegA2Sel   : in   integer  range regcnt - 1 downto 0;
-            RegDIn     : in   std_logic_vector(2 * wordsize - 1 downto 0);
-            RegDInSel  : in   integer  range regcnt/2 - 1 downto 0;
-            RegDStore  : in   std_logic;
-            RegDSel    : in   integer  range regcnt/2 - 1 downto 0;
-            clock      : in   std_logic;
-            RegA       : out  std_logic_vector(wordsize - 1 downto 0);
-            RegB       : out  std_logic_vector(wordsize - 1 downto 0);
-            RegA1      : out  std_logic_vector(wordsize - 1 downto 0);
-            RegA2      : out  std_logic_vector(wordsize - 1 downto 0);
-            RegD       : out  std_logic_vector(2 * wordsize - 1 downto 0)
-        );
-    end component;
-
-
+    signal R0_debug: std_logic_vector(31 downto 0);
+    signal R1_debug: std_logic_vector(31 downto 0);
+    signal R2_debug: std_logic_vector(31 downto 0);
+    signal R3_debug: std_logic_vector(31 downto 0);
+    signal R4_debug: std_logic_vector(31 downto 0);
+    signal R5_debug: std_logic_vector(31 downto 0);
+    signal R6_debug: std_logic_vector(31 downto 0);
+    signal R7_debug: std_logic_vector(31 downto 0);
+    signal R8_debug: std_logic_vector(31 downto 0);
+    signal R9_debug: std_logic_vector(31 downto 0);
+    signal R10_debug: std_logic_vector(31 downto 0);
+    signal R11_debug: std_logic_vector(31 downto 0);
+    signal R12_debug: std_logic_vector(31 downto 0);
+    signal R13_debug: std_logic_vector(31 downto 0);
+    signal R14_debug: std_logic_vector(31 downto 0);
+    signal R15_debug: std_logic_vector(31 downto 0);
 
 begin
+    R0_debug <= regs(0);
+    R1_debug <= regs(1);
+    R2_debug <= regs(2);
+    R3_debug <= regs(3);
+    R4_debug <= regs(4);
+    R5_debug <= regs(5);
+    R6_debug <= regs(6);
+    R7_debug <= regs(7);
+    R8_debug <= regs(8);
+    R9_debug <= regs(9);
+    R10_debug <= regs(10);
+    R11_debug <= regs(11);
+    R12_debug <= regs(12);
+    R13_debug <= regs(13);
+    R14_debug <= regs(14);
+    R15_debug <= regs(15);
 
-    u_reg_array: RegArray
-        generic map (
-            regcnt   => 16,         -- 16 registers for sh2
-            wordsize => 32          -- 32 bit wordsize for sh2
-        )
-        port map (
-            RegIn      => data_in,
-            RegInSel   => write_sel,
-            RegStore   => write_en,
-            RegASel    => read_sel_a,
-            RegBSel    => read_sel_b,
-            RegAxIn    => (others => '0'),
-            RegAxInSel => 0,
-            RegAxStore => '0',
-            RegA1Sel   => 0,
-            RegA2Sel   => 0,
-            RegDIn     => (others => '0'),
-            RegDInSel  => 0,
-            RegDStore  => '0',
-            RegDSel    => 0,
-            clock      => clk,
-            RegA       => data_out_a,
-            RegB       => data_out_b,
-            RegA1      => data_out_0,
-            RegA2      => open,
-            RegD       => open
-        );
+    process (clk) begin
+        if rising_edge(clk) then
+            if write_en = '1' then
+                regs(write_sel) <= data_in;
+            end if;
+        end if;
+    end process;
 
+    -- asynchronous with single-cycle bypass “data_in” wins whenever the same register is being written.
+    data_out_a <= data_in when (write_en = '1' and write_sel = read_sel_a) else
+                  regs(read_sel_a);
+
+    data_out_b <= data_in when (write_en = '1' and write_sel = read_sel_b) else
+                  regs(read_sel_b);
+
+    -- dedicated wire to R0 (same bypass logic)
+    data_out_0 <= data_in when (write_en = '1' and write_sel = 0)         else
+                  regs(0);
+
+                  
 end behavioral;

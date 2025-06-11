@@ -292,7 +292,7 @@ begin
     -- carry  <= to_unsigned(1, W+1) when carry0 = '1' else to_unsigned(0, W+1);
 
 
-    a_ext <= '0' & unsigned(AddOpA) & '0';
+    a_ext <= '0' & unsigned(AddOpA) & carry0;
     b_ext <= '0' & unsigned(AddOpB) & carry0;
 
 
