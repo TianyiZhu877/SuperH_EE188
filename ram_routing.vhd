@@ -76,6 +76,7 @@ begin
 
 
     process(all) begin
+        DB_write <= (others => 'X');
 
         case access_mode is
 

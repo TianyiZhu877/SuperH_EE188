@@ -317,10 +317,10 @@ architecture  structural  of  Adder  is
     constant W : integer := wordsize;                      -- shorthand
 
     signal carry0  : std_logic;                            -- effective Cin
-    signal a_ext   : unsigned(W downto 0);                 -- operands, 1-bit wider
-    signal b_ext   : unsigned(W downto 0);
-    signal sum_ext : unsigned(W downto 0);                 -- W-bit sum + carry
-    signal carry : unsigned(W downto 0);                 -- W-bit sum + carry
+    signal a_ext   : unsigned(W+1 downto 0);                 -- operands, 1-bit wider
+    signal b_ext   : unsigned(W+1 downto 0);
+    signal sum_ext : unsigned(W+1 downto 0);                 -- W-bit sum + carry
+    -- signal carry : unsigned(W downto 0);                 -- W-bit sum + carry
 
 begin
 
@@ -330,19 +330,19 @@ begin
                not Cin  when CinCmd = CinCmd_CINBAR else
                'X';  -- should never happen in normal use
     
-    carry  <= to_unsigned(1, W+1) when carry0 = '1' else to_unsigned(0, W+1);
+    -- carry  <= to_unsigned(1, W+1) when carry0 = '1' else to_unsigned(0, W+1);
 
 
-    a_ext <= '0' & unsigned(AddOpA);
-    b_ext <= '0' & unsigned(AddOpB);
+    a_ext <= '0' & unsigned(AddOpA) & '0';
+    b_ext <= '0' & unsigned(AddOpB) & carry0;
 
 
-    sum_ext <= a_ext + b_ext + carry;
+    sum_ext <= a_ext + b_ext;
 
 
-    AddResult <= std_logic_vector(sum_ext(W-1 downto 0)); -- W-bit result
-    Cout      <= sum_ext(W);                              -- carry-out (bit W)
-    HalfCout  <= sum_ext(4);                              -- carry into bit 4
+    AddResult <= std_logic_vector(sum_ext(W downto 1)); -- W-bit result
+    Cout      <= sum_ext(W+1);                              -- carry-out (bit W)
+    HalfCout  <= sum_ext(5);                              -- carry into bit 4
                                                         --  = carry out of bit 3
                                                         
     -- Signed overflow: carry into MSB != carry out of MSB

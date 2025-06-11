@@ -164,6 +164,7 @@ architecture  structural  of  SH2_CPU  is
             SCmd     : in      std_logic_vector(2 downto 0);    -- shift operation
             
             Result   : buffer  std_logic_vector(31 downto 0);   -- ALU result
+            MACL_out : out std_logic_vector(31 downto 0);  
             MACH_out : out std_logic_vector(31 downto 0);  
             T_out: out std_logic                   -- signed overflow
         );
@@ -332,6 +333,7 @@ architecture  structural  of  SH2_CPU  is
     -- signal ALU_cout         : std_logic;
     -- signal ALU_overflow         : std_logic;
     signal ALU_MACH_out : std_logic_vector(31 downto 0);  
+    signal ALU_MACL_out : std_logic_vector(31 downto 0);  
     signal ALU_T_out: std_logic;
 
 
@@ -550,7 +552,7 @@ begin
             elsif (MACL_LD_sel_EX = 2) then
                 MACL <= (others => '0');
             elsif (MACL_LD_sel_EX = 3) then
-                MACL <= ALU_result_ex;
+                MACL <= ALU_MACL_out;
                 -- MACL <= (others => 'X');
             else
                 MACL <= (others => 'X');
@@ -1999,6 +2001,7 @@ begin
                 SCmd    => SCmd_EX,    -- shift operation
                 
                 Result  => ALU_result_ex,   -- ALU result
+                MACL_out => ALU_MACL_out,
                 MACH_out => ALU_MACH_out,
                 T_out => ALU_T_out
             );

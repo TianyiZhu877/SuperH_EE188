@@ -28,6 +28,7 @@ entity ALU is
         SCmd     : in      std_logic_vector(2 downto 0);    -- shift operation
         
         Result   : buffer  std_logic_vector(31 downto 0);   -- ALU result
+        MACL_out : out std_logic_vector(31 downto 0);  
         MACH_out : out std_logic_vector(31 downto 0);  
         T_out: out std_logic
     );
@@ -78,7 +79,7 @@ architecture structural of ALU is
 -- Result temp signals
     signal mul64_signed_Result, mul64_unsigned_Result: std_logic_vector(63 downto 0); 
     signal Result_special, Result_normal: std_logic_vector(31 downto 0);   
-    signal EXT_result, MUL_result, special_shift_result: std_logic_vector(31 downto 0);   
+    signal EXT_result, special_shift_result: std_logic_vector(31 downto 0);   
 
     -- signal Overflow_internal: std_logic;
     -- signal Sign_internal: std_logic;
@@ -125,7 +126,8 @@ begin
             when SpecCmd_EXT =>
                 Result_special <= EXT_result;
             when SpecCmd_MUL =>
-                Result_special <= MUL_result;
+                -- Result_special <= MACL_out;
+                Result_special <= (others => 'X');
             when others =>
                 Result_special <= (others => 'X');
         end case;
@@ -135,27 +137,27 @@ begin
                  (others => 'X');
 
 -- multiplication, to-do: add this back after implemeting two-stage multiplication!!!
-    -- mul64_signed_Result <= std_logic_vector(signed(ALUOpA) * signed(ALUOpB));
-    -- mul64_unsigned_Result <= std_logic_vector(unsigned(ALUOpA) * unsigned(ALUOpB));
-    mul64_signed_Result <= (others => 'X');
-    mul64_unsigned_Result <= (others => 'X');
+    mul64_signed_Result <= std_logic_vector(signed(ALUOpA) * signed(ALUOpB));
+    mul64_unsigned_Result <= std_logic_vector(unsigned(ALUOpA) * unsigned(ALUOpB));
+    -- mul64_signed_Result <= (others => 'X');
+    -- mul64_unsigned_Result <= (others => 'X');
     process (all) begin
         MACH_out <= (others => 'X');
         case MULCmd is
             when 0 => 
-                MUL_result <= mul64_signed_Result(31 downto 0);
+                MACL_out <= mul64_signed_Result(31 downto 0);
                 MACH_out <= mul64_signed_Result(63 downto 32);
             when 1 => 
-                MUL_result <= mul64_unsigned_Result(31 downto 0);
+                MACL_out <= mul64_unsigned_Result(31 downto 0);
                 MACH_out <= mul64_unsigned_Result(63 downto 32);
             when 2 => 
-                MUL_result <= std_logic_vector(signed(ALUOpA(15 downto 0)) * signed(ALUOpB(15 downto 0)));
-                -- MUL_result <= (others => '1');
+                MACL_out <= std_logic_vector(signed(ALUOpA(15 downto 0)) * signed(ALUOpB(15 downto 0)));
+                -- MACL_out <= (others => '1');
             when 3 => 
-                MUL_result <= std_logic_vector(unsigned(ALUOpA(15 downto 0)) * unsigned(ALUOpB(15 downto 0)));
-                -- MUL_result <= (others => '1');
+                MACL_out <= std_logic_vector(unsigned(ALUOpA(15 downto 0)) * unsigned(ALUOpB(15 downto 0)));
+                -- MACL_out <= (others => '1');
             when others =>
-                MUL_result <= (others => 'X');
+                MACL_out <= (others => 'X');
         end case;
 
 

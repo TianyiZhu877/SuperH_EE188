@@ -116,6 +116,8 @@ architecture  structural  of  SH2_CPU_sythesis  is
     signal reg_out_a_debug :  std_logic_vector(31 downto 0);
     signal exception_debug :  std_logic;
 
+    signal WE: std_logic;
+
 begin
 
     cpu_wrapped: SH2_CPU
@@ -147,10 +149,19 @@ begin
             exception_debug => exception_debug
         );
 
+    WE  <=  WE0  and  WE1  and  WE2  and  WE3;
+
     process (clock) begin
-        DB_read <= DB;
+        if rising_edge(clock) then
+            if WE = '1' then
+                DB_read <= DB;
+            else
+                DB_read <= (others => 'X');
+            end if;
+        end if;
     end process;
 
-    DB <= DB_write;
+    DB <= DB_write when WE = '0' 
+        else (others => 'Z');
 
 end structural;
