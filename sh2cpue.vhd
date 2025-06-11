@@ -186,6 +186,25 @@ architecture  structural  of  SH2_CPU  is
         );
     end component;
 
+
+    component  compareDecideUnit
+        generic (
+            int_range   : integer := 16
+        );
+        port (
+            clk :    std_logic;
+            reset   :  std_logic;
+            cmp_src : in   integer  range int_range - 1 downto 0;
+            cmp_dst : in   integer  range int_range - 1 downto 0;
+            en  :   std_logic;
+
+            decision_delay_0: out std_logic;
+            decision_delay_1: out std_logic;
+            decision_delay_2: out std_logic
+        );
+    end component;
+
+
     constant Opcode_NoOp: std_logic_vector(15 downto 0) := "0000000000001001";
 
 -- All signals used for this project. See the cpu_dataflow_and_signals.jpg for definition. The 
@@ -344,11 +363,17 @@ architecture  structural  of  SH2_CPU  is
 -- stall/flush signals
     signal fetch_stall: std_logic;
 
+-- for data forwarding
+    signal reg_out_a_EX_unresolved_reg  :   std_logic_vector(31 downto 0);
+    signal reg_out_b_EX_unresolved_reg  :   std_logic_vector(31 downto 0);
+    signal reg_write_addr_EX    :   integer range 15 downto 0;
+    signal reg_a_out_forward    :   std_logic;
+    signal reg_b_out_forward    :   std_logic;
 
 -- exceptions from components
     signal ram_exception : std_logic;    
 
--- for four stage pipeline
+-- for four stage unpipelined
     -- type controlUnitStates is (FE, DE, EX, WB);
     -- signal state : std_logic_vector(1 downto 0);
 
@@ -407,9 +432,9 @@ begin
                 PC <= PC_pre;
                 PC_EX <= PC;
             -- register readouts
-                reg_out_a_EX <= reg_out_a_de;
+                reg_out_a_EX_unresolved_reg <= reg_out_a_de;
                 -- reg_out_a_WB <= reg_out_a_EX;
-                reg_out_b_EX <= reg_out_b_de;
+                reg_out_b_EX_unresolved_reg <= reg_out_b_de;
                 -- reg_out_b_WB <= reg_out_b_EX;
                 reg_out_R0_EX <= reg_out_R0_de;
             -- other registers for write back to regfile
@@ -1963,6 +1988,20 @@ begin
                 reg_in_reg_sel_result_WB when reg_write_in_mux_WB = 3 else
                 (others => 'X');
 
+
+-- data forwarding
+    reg_write_addr_EX <= to_integer(unsigned(IR_EX(11 downto 8))) when  reg_write_addr_mux_EX = 0  else
+            to_integer(unsigned(IR_EX(7 downto 4))) when   reg_write_addr_mux_EX = 1  else
+             0 when   reg_write_addr_mux_EX = 2  else
+            14;   
+    
+    reg_out_a_EX <= reg_out_a_EX_unresolved_reg when reg_a_out_forward = '0'
+                else reg_write_in;
+
+    reg_out_b_EX <= reg_out_b_EX_unresolved_reg when reg_b_out_forward = '0'
+                else reg_write_in;
+
+
 -- connecting components
 
     data_addr_unit:  AddrUnit
@@ -2055,5 +2094,40 @@ begin
                 WE3 => WE3,                       -- fourth byte active low write enable
                 exception => ram_exception
             );
+
+
+
+        reg_a_cd_unit: compareDecideUnit
+            generic map (
+                int_range => 16
+            )
+            port map (
+                clk => clk,
+                reset => Reset,
+                cmp_src => reg_read_a,
+                cmp_dst => reg_write_addr_EX,
+                en => reg_write_en_EX,
+
+                decision_delay_0 => open,
+                decision_delay_1 => reg_a_out_forward,
+                decision_delay_2 => open
+            );
     
+        reg_b_cd_unit: compareDecideUnit
+            generic map (
+                int_range => 16
+            )
+            port map (
+                clk => clk,
+                reset => Reset,
+                cmp_src => reg_read_b,
+                cmp_dst => reg_write_addr_EX,
+                en => reg_write_en_EX,
+
+                decision_delay_0 => open,
+                decision_delay_1 => reg_b_out_forward,
+                decision_delay_2 => open
+            );
+
+
 end structural;

@@ -4,7 +4,7 @@ FLAGS=--std=08 # --ieee=synopsys
 SOURCES_ADDRESSING = mau_general.vhd addr_unit.vhd
 SOURCES_RAM_ROUTING = ram_routing.vhd
 SOURCES_REG = reg_general.vhd regfile.vhd
-SOURCES_ALU = alu_general.vhd ALU.vhd
+SOURCES_ALU = compare_decide_unit.vhd alu_general.vhd ALU.vhd
 
 ALL_SOURCES = $(SOURCES_ADDRESSING)  \
 			$(SOURCES_RAM_ROUTING) \
