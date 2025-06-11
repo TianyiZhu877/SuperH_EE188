@@ -366,9 +366,11 @@ architecture  structural  of  SH2_CPU  is
 -- for data forwarding
     signal reg_out_a_EX_unresolved_reg  :   std_logic_vector(31 downto 0);
     signal reg_out_b_EX_unresolved_reg  :   std_logic_vector(31 downto 0);
+    signal reg_out_r0_EX_unresolved_reg :   std_logic_vector(31 downto 0);
     signal reg_write_addr_EX    :   integer range 15 downto 0;
     signal reg_a_out_forward    :   std_logic;
     signal reg_b_out_forward    :   std_logic;
+    signal reg_r0_out_forward    :   std_logic;
 
 -- exceptions from components
     signal ram_exception : std_logic;    
@@ -436,7 +438,7 @@ begin
                 -- reg_out_a_WB <= reg_out_a_EX;
                 reg_out_b_EX_unresolved_reg <= reg_out_b_de;
                 -- reg_out_b_WB <= reg_out_b_EX;
-                reg_out_R0_EX <= reg_out_R0_de;
+                reg_out_r0_EX_unresolved_reg <= reg_out_R0_de;
             -- other registers for write back to regfile
             reg_in_reg_sel_result_WB <= reg_in_reg_sel_result_ex;
 
@@ -845,7 +847,7 @@ begin
                             reg_write_en <= '1';
                         
                         elsif (opcode(7 downto 4) = "0001") then
-                        -- STC MACHL, Rn
+                        -- STC MACH/L, Rn
                             reg_write_in_sel_regs <= 5;
                             reg_write_en <= '1';
 
@@ -2001,6 +2003,9 @@ begin
     reg_out_b_EX <= reg_out_b_EX_unresolved_reg when reg_b_out_forward = '0'
                 else reg_write_in;
 
+    reg_out_r0_EX <= reg_out_r0_EX_unresolved_reg when reg_r0_out_forward = '0'
+                else reg_write_in;
+
 
 -- connecting components
 
@@ -2129,5 +2134,21 @@ begin
                 decision_delay_2 => open
             );
 
+
+        reg_r0_cd_unit: compareDecideUnit
+            generic map (
+                int_range => 16
+            )
+            port map (
+                clk => clk,
+                reset => Reset,
+                cmp_src => 0,
+                cmp_dst => reg_write_addr_EX,
+                en => reg_write_en_EX,
+
+                decision_delay_0 => open,
+                decision_delay_1 => reg_r0_out_forward,
+                decision_delay_2 => open
+            );
 
 end structural;

@@ -1,9 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
--- The register unit designed  for SH2. Most signal connects directly into the
--- wrapped general register unit. The address access parts are removed as not
--- havard architecture
+
 entity RegFile is
     port (
         clk        : in  std_logic;                         -- clock
@@ -14,7 +12,7 @@ entity RegFile is
         read_sel_b : in  integer range 15 downto 0;         -- select the second register to output
         data_out_a : out std_logic_vector(31 downto 0);     -- the data output for the first register
         data_out_b : out std_logic_vector(31 downto 0);     -- the data output for the second register
-        data_out_0 : out std_logic_vector(31 downto 0)      -- the data output for the second register
+        data_out_0 : out std_logic_vector(31 downto 0)      -- the data output always connected to register 0 register
     );
 end RegFile;
 
