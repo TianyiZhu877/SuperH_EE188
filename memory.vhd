@@ -181,10 +181,10 @@ begin
 
     process
         variable ram_temp : RAMtype;
-        variable filename : string(1 to 1);
+        variable filename : string(1 to 3);
     begin
-        filename := "3";
-        -- filename := "fib";
+        -- filename := "1";
+        filename := "fib";
         -- filename := "arith";
         -- filename := "logic";
         -- filename := "xfern";

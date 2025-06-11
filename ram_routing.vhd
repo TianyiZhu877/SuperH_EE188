@@ -15,6 +15,7 @@ use work.RamAccessMode.all;
 entity RAMRouting is
     port (
         clk          : in    std_logic;  
+        reset          : in    std_logic;  
         EN          : in    std_logic;      -- 1 for enable, 0 for disable
         PD          : in    std_logic;      -- 0 for program, 1 for data memory 
         RW          : in    std_logic;      -- 0 for read, 1 for write, force read if program
@@ -26,6 +27,7 @@ entity RAMRouting is
         DB_write      :  out  std_logic_vector(31 downto 0);
         DB_read      :  in  std_logic_vector(31 downto 0);
         read_data  :  out  std_logic_vector(31 downto 0);
+        fetch_stall: out std_logic;
         AB  :  out  std_logic_vector(31 downto 0);
 
         RE0     :  out    std_logic;                       -- first byte active low read enable
@@ -53,19 +55,35 @@ architecture  structural  of  RAMRouting  is
 
     -- signal write_data_internal : std_logic_vector(31 downto 0);
     -- signal read_data_internal  : std_logic_vector(31 downto 0);
+    signal access_mode_internal: std_logic_vector(1 downto 0);
 
     -- buffers
     signal last_access_mode: std_logic_vector(1 downto 0);
     signal last_ab_10: std_logic_vector(1 downto 0);
+    signal fetch_stall_reg: std_logic;
 
 begin
+
+    access_mode_internal <= WORD_ACCESS when   PD = '0' else
+                        access_mode   when   PD = '1' else
+                        "XX";
+
+
     process(clk) begin
         if  rising_edge(clk)  then
-            last_access_mode <= access_mode;
+            last_access_mode <= access_mode_internal;
             last_ab_10 <= MemAB(1 downto 0);
+
+
+            fetch_stall_reg <= PD; -- if data is reading, then next output is not instruction, 
+
+            if (reset = '0') then 
+                fetch_stall_reg <= '1';
+            end if;
+
         end if;
     end process;
-
+    
 
     AB <= MemAB;
     -- AB <= (others => '0');
@@ -74,11 +92,13 @@ begin
             (others => 'X');
 
 
+    fetch_stall <= fetch_stall_reg; 
+
 
     process(all) begin
         DB_write <= (others => 'X');
 
-        case access_mode is
+        case access_mode_internal is
 
             when BYTE_ACCESS =>
 

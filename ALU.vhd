@@ -137,10 +137,10 @@ begin
                  (others => 'X');
 
 -- multiplication, to-do: add this back after implemeting two-stage multiplication!!!
-    mul64_signed_Result <= std_logic_vector(signed(ALUOpA) * signed(ALUOpB));
-    mul64_unsigned_Result <= std_logic_vector(unsigned(ALUOpA) * unsigned(ALUOpB));
-    -- mul64_signed_Result <= (others => 'X');
-    -- mul64_unsigned_Result <= (others => 'X');
+    -- mul64_signed_Result <= std_logic_vector(signed(ALUOpA) * signed(ALUOpB));
+    -- mul64_unsigned_Result <= std_logic_vector(unsigned(ALUOpA) * unsigned(ALUOpB));
+    mul64_signed_Result <= (others => 'X');
+    mul64_unsigned_Result <= (others => 'X');
     process (all) begin
         MACH_out <= (others => 'X');
         case MULCmd is
