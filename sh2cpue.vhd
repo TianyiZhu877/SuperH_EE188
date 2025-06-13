@@ -362,6 +362,7 @@ architecture  structural  of  SH2_CPU  is
 
 -- stall/flush signals
     signal fetch_stall: std_logic;
+    signal flush_1: std_logic;
 
 -- for data forwarding
     signal reg_out_a_EX_unresolved_reg  :   std_logic_vector(31 downto 0);
@@ -439,6 +440,7 @@ begin
                 reg_out_b_EX_unresolved_reg <= reg_out_b_de;
                 -- reg_out_b_WB <= reg_out_b_EX;
                 reg_out_r0_EX_unresolved_reg <= reg_out_R0_de;
+                -- reg_out_R0_EX <= reg_out_R0_de;
             -- other registers for write back to regfile
             reg_in_reg_sel_result_WB <= reg_in_reg_sel_result_ex;
 
@@ -507,18 +509,18 @@ begin
                 -- de -> EX:
             reg_write_addr_mux_EX <= reg_write_addr_mux;
             reg_write_in_mux_EX <= reg_write_in_mux;     
-            reg_write_en_EX <= reg_write_en;  
+            reg_write_en_EX <= reg_write_en when flush_1 = '0' else '0'; 
             reg_write_in_sel_regs_EX <= reg_write_in_sel_regs;    
             -- branch control
-            br_flush_EX <= br_flush;
-            PC_LD_sel_EX <= PC_LD_sel;      
+            br_flush_EX <= br_flush when flush_1 = '0' else '0';
+            PC_LD_sel_EX <= PC_LD_sel when flush_1 = '0' else 0;     
             PC_conditional_sel_EX <= PC_conditional_sel;
             -- control register
-            PR_LD_sel_EX <=  PR_LD_sel;
-            T_LD_sel_EX <=  T_LD_sel;
-            LD_GBR_EX <=  LD_GBR;
-            MACH_LD_sel_EX <=  MACH_LD_sel;
-            MACL_LD_sel_EX <= MACL_LD_sel;
+            PR_LD_sel_EX <=  PR_LD_sel when flush_1 = '0' else 0;
+            T_LD_sel_EX <=  T_LD_sel when flush_1 = '0' else 0;
+            LD_GBR_EX <=  LD_GBR when flush_1 = '0' else '0';
+            MACH_LD_sel_EX <=  MACH_LD_sel when flush_1 = '0' else 0;
+            MACL_LD_sel_EX <= MACL_LD_sel when flush_1 = '0' else 0;
             -- ALU
             alu_op_a_sel_EX <= alu_op_a_sel;
             alu_op_b_sel_EX <= alu_op_b_sel;
@@ -537,9 +539,9 @@ begin
             DispCutoff_EX <= DispCutoff;       
             PrePostSel_EX <= PrePostSel;
             -- RAM routing
-            ram_EN_EX <= ram_EN;    
-            ram_PD_EX <= ram_PD;   
-            ram_RW_EX <= ram_RW;     
+            ram_EN_EX <= ram_EN;
+            ram_PD_EX <= ram_PD when flush_1 = '0' else '0';  
+            ram_RW_EX <= ram_RW when flush_1 = '0' else '0';     
             ram_access_mode_EX <= ram_access_mode;  
 
                 -- WB->EX:
@@ -1691,26 +1693,26 @@ begin
                             -- if (state = "10") then
                                 PC_LD_sel <= 2;
                                 PC_conditional_sel <= 1;
+                                br_flush <= '1';
                             -- end if;
                         when "1011" =>
                         -- bf disp:8
                             -- if (state = "10") then
                                 PC_LD_sel <= 2;
                                 PC_conditional_sel <= 2;
+                                br_flush <= '1';
                             -- end if;
                         when "1101" =>
                         -- bt/s disp:8
                             -- if (state = "10") then
                                 PC_LD_sel <= 2;
                                 PC_conditional_sel <= 1;
-                                -- to-do: add flushing here
                             -- end if;
                         when "1111" =>
                         -- bf/s disp:8
                             -- if (state = "10") then
                                 PC_LD_sel <= 2;
                                 PC_conditional_sel <= 2;
-                                -- to-do: add flushing here
                             -- end if;
                         when others =>
                             null;
@@ -2005,6 +2007,10 @@ begin
 
     reg_out_r0_EX <= reg_out_r0_EX_unresolved_reg when reg_r0_out_forward = '0'
                 else reg_write_in;
+
+-- flushing
+    flush_1 <= '1' when (PC_LD_actual /= 0) and (br_flush_EX = '1')
+          else '0';
 
 
 -- connecting components
