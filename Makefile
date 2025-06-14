@@ -14,16 +14,20 @@ ALL_SOURCES = $(SOURCES_ADDRESSING)  \
 
 TB_FILES = memory.vhd sh2cpu_tb.vhd
 
+.PHONY: tb compile simulate
+
 all:  tb
 
-tb: compile
-	@$(GDHL) -r $(FLAGS) SH2_CPU_tb   --stop-time=10us  --vcd=wave.vcd --stop-delta=100000 
-	--wave=wave.ghw
-	
+tb: compile simulate
+
 compile: 
 	@$(GDHL) -a $(FLAGS) $(ALL_SOURCES) $(TB_FILES)
 	@$(GDHL) -e $(FLAGS) SH2_CPU_tb
 
+simulate:
+	@$(GDHL) -r $(FLAGS) SH2_CPU_tb   --stop-time=10us  --vcd=wave.vcd 
+	--wave=wave.ghw
+	
 addr_unit:
 	@$(GDHL) -a $(FLAGS) $(SOURCES_ADDRESSING)
 	@$(GDHL) -e $(FLAGS) AddrUnit

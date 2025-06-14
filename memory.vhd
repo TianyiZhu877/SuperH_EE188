@@ -181,14 +181,14 @@ begin
 
     process
         variable ram_temp : RAMtype;
-        variable filename : string(1 to 5);
+        variable filename : string(1 to 1);
     begin
-        -- filename := "3";
+        filename := "3";
         -- filename := "fib";
         -- filename := "arith";
         -- filename := "logic";
         -- filename := "xfern";
-        filename := "branc";
+        -- filename := "branc";
         -- filename := "shift";            -- change PC_reset_addr_debug in tb.vhd:160 to x"00001020" when testing for this!!!!!!
 
 
